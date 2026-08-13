@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EdgeOne 域名管理 - 登录</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body class="login-page">
+    <div class="login-card">
+        <div class="login-brand">
+            <span class="logo">EO</span>
+            <h1>EdgeOne 域名管理</h1>
+            <p class="subtitle">请输入管理员密码登录</p>
+        </div>
+        <form id="loginForm" class="login-form">
+            <div class="form-group">
+                <input type="password" id="loginPassword" class="form-control login-input"
+                       placeholder="管理员密码" autocomplete="current-password" autofocus />
+            </div>
+            <button type="submit" class="btn primary login-btn" id="loginSubmit">登录</button>
+            <div class="login-hint">默认密码：admin，登录后请及时修改</div>
+            <div class="login-error" id="loginError"></div>
+        </form>
+    </div>
+
+    <div class="toast-wrap" id="toastWrap"></div>
+
+    <script>
+        (function() {
+            var form = document.getElementById("loginForm");
+            var input = document.getElementById("loginPassword");
+            var btn = document.getElementById("loginSubmit");
+            var errBox = document.getElementById("loginError");
+
+            form.addEventListener("submit", function(e) {
+                e.preventDefault();
+                var pw = input.value.trim();
+                if (!pw) { errBox.textContent = "请输入密码"; return; }
+                errBox.textContent = "";
+                btn.disabled = true;
+                btn.textContent = "登录中...";
+
+                fetch("/api/auth/login", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ password: pw })
+                }).then(function(res) {
+                    return res.json().then(function(data) {
+                        if (res.ok && data.ok) {
+                            window.location.href = "/";
+                        } else {
+                            errBox.textContent = data.error || "登录失败";
+                            btn.disabled = false;
+                            btn.textContent = "登录";
+                            input.value = "";
+                            input.focus();
+                        }
+                    });
+                }).catch(function() {
+                    errBox.textContent = "网络错误，请重试";
+                    btn.disabled = false;
+                    btn.textContent = "登录";
+                });
+            });
+        })();
+    </script>
+</body>
+</html>

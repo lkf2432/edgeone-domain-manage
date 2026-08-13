@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+settings.json
+ddns_config.json
+.git/
+.gitignore
+*.md
+Dockerfile
+.dockerignore
+docker-compose.yml
+data/
+logs/
+fpk_build/
+fnpack*
+build_fpk.py

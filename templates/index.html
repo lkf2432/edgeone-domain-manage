@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EdgeOne 域名管理</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+    <header class="topbar">
+        <div class="brand">
+            <span class="logo">EO</span>
+            <div>
+                <h1>EdgeOne 域名管理</h1>
+                <p class="subtitle">加速域名的列表、编辑、启停、删除与 HTTPS 配置</p>
+            </div>
+        </div>
+        <div class="topbar-actions">
+            <div class="zone-picker">
+                <label for="zoneSelect">站点 (Zone)</label>
+                <select id="zoneSelect"><option value="">加载中...</option></select>
+            </div>
+            <button class="btn ghost" id="settingsBtn" title="EdgeOne 接口配置">⚙ 设置</button>
+            <button class="btn ghost" id="changePwBtn" title="修改管理员密码">🔑 改密</button>
+            <button class="btn ghost" id="logoutBtn" title="退出登录">退出</button>
+        </div>
+    </header>
+
+    <div class="alert" id="configAlert" style="display:none">
+        未配置腾讯云密钥，无法调用 EdgeOne 接口。请点击右上角 <strong>“设置”</strong> 按钮填写 SecretId / SecretKey。
+    </div>
+
+    <main class="container">
+        <div class="toolbar">
+            <input type="search" id="searchInput" placeholder="搜索域名..." />
+            <div class="spacer"></div>
+            <button class="btn ghost" id="logsBtn">📋 日志</button>
+            <button class="btn ghost" id="ddnsBtn">🔄 DDNS</button>
+            <button class="btn ghost" id="refreshBtn">刷新</button>
+            <button class="btn primary" id="addBtn">+ 添加域名</button>
+        </div>
+
+        <div class="table-wrap">
+            <table class="domain-table">
+                <thead>
+                    <tr>
+                        <th>域名</th>
+                        <th>状态</th>
+                        <th>源站类型</th>
+                        <th>源站地址</th>
+                        <th>HTTPS</th>
+                        <th>IPv6</th>
+                        <th class="col-actions">操作</th>
+                    </tr>
+                </thead>
+                <tbody id="domainTbody">
+                    <tr class="empty-row"><td colspan="7">请先选择站点</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <!-- 通用模态框 -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal" id="modalBox">
+            <div class="modal-header">
+                <h3 id="modalTitle">标题</h3>
+                <button class="icon-btn" id="modalClose">×</button>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+            <div class="modal-footer" id="modalFooter"></div>
+        </div>
+    </div>
+
+    <div class="toast-wrap" id="toastWrap"></div>
+
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

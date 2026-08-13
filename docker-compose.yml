@@ -1,0 +1,22 @@
+version: "3.8"
+
+services:
+  edgeone-manager:
+    build: .
+    image: edgeone-manager:latest
+    container_name: edgeone-manager
+    restart: unless-stopped
+    ports:
+      - "8196:8196"
+    volumes:
+      # 持久化配置和日志（settings.json、ddns_config.json、logs/）
+      - ./data:/app/data
+    environment:
+      - APP_PORT=8196
+      - DATA_DIR=/app/data
+      # 可选：通过环境变量预设腾讯云密钥（首次启动使用，之后以 settings.json 为准）
+      # - TENCENTCLOUD_SECRET_ID=
+      # - TENCENTCLOUD_SECRET_KEY=
+      # - EDGEONE_REGION=ap-guangzhou
+      # 可选：自定义 session 密钥
+      # - SECRET_KEY=your-secret-key

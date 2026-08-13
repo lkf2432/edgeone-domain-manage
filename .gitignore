@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# uv
+.venv/
+uv.lock
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Application data (contains sensitive keys & password hash)
+data/
+logs/
+settings.json
+ddns_config.json
+
+# Environment variables (may contain secrets)
+.env
+.env.local
+.env.*.local
+
+# Docker
+edgeone-manager.fpk
+fpk_build/
+fnpack-*
+
+# Packaging
+*.fpk
+*.tar.gz
+*.zip

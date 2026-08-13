@@ -1,0 +1,4 @@
+Flask>=3.0.0
+python-dotenv>=1.0.0
+tencentcloud-sdk-python>=3.0.1000
+gunicorn>=21.0.0

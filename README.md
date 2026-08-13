@@ -1,1 +1,178 @@
-IyBFZGdlT25lIOWfn+WQjeeuoeeQhgoK6IW+6K6v5LqRIEVkZ2VPbmUg5Yqg6YCf5Z+f5ZCN566h55CG5bel5YW377yM5pSv5oyB5Z+f5ZCN5YiX6KGo44CB57yW6L6R44CB5ZCv5YGc44CB5Yig6Zmk44CBSFRUUFMg6YWN572u44CBQ05BTUUg5LiA6ZSu5re75Yqg44CBREROUyDoh6rliqjmm7TmlrDmupDnq5nnu4QgSVAg562J5Yqf6IO944CCCgojIyDlip/og73nibnmgKcKCi0g5Z+f5ZCN566h55CG77ya5YiX5Ye644CB5re75Yqg44CB57yW6L6R44CB5ZCv55SoL+WBnOeUqOOAgeWIoOmZpOWKoOmAn+Wfn+WQjQotIEhUVFBTIOmFjee9ru+8muS4gOmUruW8gOWQry/lhbPpl60gSFRUUFPvvIzmn6XnnIvor4Hkuabkv6Hmga8KLSBDTkFNRSDoh6rliqjmt7vliqDvvJrmoLnmja7nq5nngrnmjqXlhaXnsbvlnovoh6rliqjliJvlu7rlubblkK/nlKggQ05BTUUg6K6w5b2VCi0gSVB2NiDmlK/mjIHvvJrln5/lkI3lj6/lvIDlkK8gSVB2NiDliqDpgJ/vvIzliJfooajmmL7npLogSVB2NiDnirbmgIEKLSBERE5TIOiHquWKqOabtOaWsOa6kOermee7hO+8muWumuaXtuajgOa1i+acrOacuiBJUO+8jOiHquWKqOabtOaWsCBFZGdlT25lIOa6kOermee7hAogIC0g5pSv5oyBIElQdjQgLyBJUHY2CiAgLSDmlK/mjIHnvZHljaHojrflj5YgLyDlhaznvZHmjqXlj6Pojrflj5bkuKTnp43mlrnlvI8KICAtIOaUr+aMgeiHquWumuS5ieabtOaWsOmXtOmalAogIC0g5pSv5oyBIFdlYmhvb2sg5raI5oGv5o6o6YCB77yI6ZKJ6ZKJIC8g5LyB5Lia5b6u5L+h5py65Zmo5Lq677yJCi0g5pel5b+X5p+l55yL77ya5bqU55So6L+Q6KGM5pel5b+X44CBRWRnZU9uZSBBUEkg6LCD55So5pel5b+X44CBREROUyDov5DooYzml6Xlv5cKLSDnrqHnkIblkZjorqTor4HvvJrljZXnlKjmiLflr4bnoIHnmbvlvZXvvIzpu5jorqTlr4bnoIEgYGFkbWluYO+8jOaUr+aMgeS/ruaUuQoKIyMg6buY6K6k5a+G56CBCgrpppbmrKHnmbvlvZXkvb/nlKjpu5jorqTlr4bnoIHvvJoKCmBgYAphZG1pbgpgYGAKCuivt+eZu+W9leWQjuWPiuaXtuWcqOOAjPCflJEg5pS55a+G44CN5Lit5L+u5pS544CCCgrlv5jorrDlr4bnoIHlj6/ph43oo4XlupTnlKjoh6rliqjph43nva7vvIzmiJYgU1NIIOaJp+ihjCBgL3Zhci9hcHBzL2VkZ2VvbmUtbWFuYWdlci9jbWQvcmVzZXRfcGFzc3dvcmRgIOmHjee9ruOAggoKLS0tCgojIyDpg6jnvbLmlrnlvI8KCiMjIyDmlrnlvI/kuIDvvJrpo57niZsgTkFTIEZQSyDlronoo4XvvIjmjqjojZDvvIkKCuWcqCBbUmVsZWFzZXNdKGh0dHBzOi8vZ2l0aHViLmNvbS9neWMyNDMyL2VkZ2VvbmUtZGVvY2tlci9yZWxlYXNlcykg5LiL6L295pyA5paw55qEIGBlZGdlb25lLW1hbmFnZXIuZnBrYO+8jOS4iuS8oOWIsOmjnueJmyBOQVMg5bqU55So5Lit5b+D5omL5Yqo5a6J6KOF5Y2z5Y+v44CCCgrlronoo4XlrozmiJDlkI7orr/pl67vvJpgaHR0cDovLzxOQVMgSVA+OjgxOTZgCgotLS0KCiMjIyDmlrnlvI/kuozvvJpEb2NrZXIg5omL5Yqo6L+Q6KGMCgpgYGBiYXNoCmRvY2tlciBydW4gLWQgXAogIC0tbmFtZSBlZGdlb25lLW1hbmFnZXIgXAogIC0tbmV0d29yayBob3N0IFwKICAtdiAvcGF0aC90by9kYXRhOi9hcHAvZGF0YSBcCiAgLWUgQVBQX1BPUlQ9ODE5NiBcCiAgLWUgREFUQV9ESVI9L2FwcC9kYXRhIFwKICBneWMyNDMyL2VkZ2VvbmUtbWFuYWdlcjpsYXRlc3QKYGBgCgrlkK/liqjlkI7orr/pl67vvJpgaHR0cDovL2xvY2FsaG9zdDo4MTk2YAoKIyMjIyDlj4LmlbDor7TmmI4KCnwg5Y+C5pWwIHwg6K+05piOIHwg6buY6K6k5YC8IHwKfC0tLS0tLXwtLS0tLS18LS0tLS0tLS18CnwgYC0tbmV0d29yayBob3N0YCB8IOS9v+eUqOWuv+S4u+acuue9kee7nO+8iOaOqOiNkO+8jOaUr+aMgeWkmue9keWNoe+8iSB8IC0gfAp8IGAtcCA4MTk2OjgxOTZgIHwg5LiN55SoIGhvc3Qg572R57uc5pe277yM55So56uv5Y+j5pig5bCE5pu/5LujIHwgLSB8CnwgYC12IC9wYXRoL3RvL2RhdGE6L2FwcC9kYXRhYCB8IOmFjee9ruS4juaXpeW/l+aMgeS5heWMluebruW9lSB8IOW/hemcgCB8CnwgYC1lIEFQUF9QT1JUPTgxOTZgIHwg5bqU55So55uR5ZCs56uv5Y+jIHwgYDgxOTZgIHwKfCBgLWUgREFUQV9ESVI9L2FwcC9kYXRhYCB8IOaVsOaNruebruW9le+8iOS4jiB2b2x1bWUg5a+55bqU77yJIHwgYC9hcHAvZGF0YWAgfAp8IGAtZSBURU5DRU5UQ0xPVURfU0VDUkVUX0lEPXh4eGAgfCDohb7orq/kupEgU2VjcmV0SWTvvIjnjq/looPlj5jph4/mlrnlvI/vvIkgfCAtIHwKfCBgLWUgVEVOQ0VOVENMT1VEX1NFQ1JFVF9LRVk9eHh4YCB8IOiFvuiur+S6kSBTZWNyZXRLZXnvvIjnjq/looPlj5jph4/mlrnlvI/vvIkgfCAtIHwKfCBgLWUgRURHRU9ORV9SRUdJT049YXAtZ3Vhbmd6aG91YCB8IEVkZ2VPbmUg5Yy65Z+fIHwgYGFwLWd1YW5nemhvdWAgfAoKLS0tCgojIyMg5pa55byP5LiJ77yaRG9ja2VyIENvbXBvc2Ug6L+Q6KGMCgrliJvlu7ogYGRvY2tlci1jb21wb3NlLnltbGDvvJoKCmBgYHlhbWwKc2VydmljZXM6CiAgZWRnZW9uZS1tYW5hZ2VyOgogICAgaW1hZ2U6IGd5YzI0MzIvZWRnZW9uZS1tYW5hZ2VyOmxhdGVzdAogICAgY29udGFpbmVyX25hbWU6IGVkZ2VvbmUtbWFuYWdlcgogICAgcmVzdGFydDogdW5sZXNzLXN0b3BwZWQKICAgIG5ldHdvcmtfbW9kZTogaG9zdAogICAgdm9sdW1lczoKICAgICAgLSAuL2RhdGE6L2FwcC9kYXRhCiAgICBlbnZpcm9ubWVudDoKICAgICAgLSBBUFBfUE9SVD04MTk2CiAgICAgIC0gREFUQV9ESVI9L2FwcC9kYXRhCiAgICAgICMg5Y+v6YCJ77ya6YCa6L+H546v5aKD5Y+Y6YeP6aKE6K6+6IW+6K6v5LqR5a+G6ZKl77yI5Lmf5Y+v55m75b2V5ZCO5Zyo6YWN572u6aG16K6+572u77yJCiAgICAgICMgLSBURU5DRU5UQ0xPVURfU0VDUkVUX0lEPXlvdXJfc2VjcmV0X2lkCiAgICAgICMgLSBURU5DRU5UQ0xPVURfU0VDUkVUX0tFWT15b3VyX3NlY3JldF9rZXkKICAgICAgIyAtIEVER0VPTkVfUkVHSU9OPWFwLWd1YW5nemhvdQpgYGAKCuWQr+WKqO+8mgoKYGBgYmFzaApkb2NrZXIgY29tcG9zZSB1cCAtZApgYGAKCuWQr+WKqOWQjuiuv+mXru+8mmBodHRwOi8vbG9jYWxob3N0OjgxOTZgCgotLS0KCiMjIyDmlrnlvI/lm5vvvJrmiYvliqjov5DooYwgUHl0aG9uCgojIyMjIOeOr+Wig+imgeaxggoKLSBQeXRob24gMy4xMisKLSBbdXZdKGh0dHBzOi8vZ2l0aHViLmNvbS9hc3RyYWwtc2gvdXYp77yI5o6o6I2Q77yJ5oiWIHBpcAoKIyMjIyAxLiDlhYvpmobpobnnm64KCmBgYGJhc2gKZ2l0IGNsb25lIGh0dHBzOi8vZ2l0aHViLmNvbS9neWMyNDMyL2VkZ2VvbmUtZGVvY2tlci5naXQKY2QgZWRnZW9uZS1kZW9ja2VyCmBgYAoKIyMjIyAyLiDliJvlu7romZrmi5/njq/looPlubblronoo4Xkvp3otZYKCuS9v+eUqCB1du+8mgoKYGBgYmFzaAp1diB2ZW52CnV2IHBpcCBpbnN0YWxsIC1yIHJlcXVpcmVtZW50cy50eHQKYGBgCgrmiJbkvb/nlKggcGlw77yaCgpgYGBiYXNoCnB5dGhvbiAtbSB2ZW52IC52ZW52CnNvdXJjZSAudmVudi9iaW4vYWN0aXZhdGUgICAgICAjIFdpbmRvd3M6IC52ZW52XFNjcmlwdHNcYWN0aXZhdGUKcGlwIGluc3RhbGwgLXIgcmVxdWlyZW1lbnRzLnR4dApgYGAKCiMjIyMgMy4g6YWN572u77yI5Y+v6YCJ77yJCgrlpI3liLYgYC5lbnYuZXhhbXBsZWAg5Li6IGAuZW52YO+8jOWhq+WFpeiFvuiur+S6keWvhumSpe+8iOS5n+WPr+eZu+W9leWQjuWcqOmFjee9rumhteiuvue9ru+8ie+8mgoKYGBgYmFzaApjcCAuZW52LmV4YW1wbGUgLmVudgojIOe8lui+kSAuZW5277yM5aGr5YWlIFRFTkNFTlRDTE9VRF9TRUNSRVRfSUQg5ZKMIFRFTkNFTlRDTE9VRF9TRUNSRVRfS0VZCmBgYAoKIyMjIyA0LiDlkK/liqjlupTnlKgKCuS9v+eUqCBGbGFzayDlvIDlj5HmnI3liqHlmajvvJoKCmBgYGJhc2gKIyBXaW5kb3dzCi52ZW52XFNjcmlwdHNcYWN0aXZhdGUKcHl0aG9uIGFwcC5weQoKIyBMaW51eC9tYWNPUwpzb3VyY2UgLnZlbnYvYmluL2FjdGl2YXRlCnB5dGhvbiBhcHAucHkKYGBgCgrmiJbkvb/nlKggZ3VuaWNvcm7vvIjmjqjojZDnlJ/kuqfnjq/looPvvInvvJoKCmBgYGJhc2gKZ3VuaWNvcm4gLS1iaW5kIDAuMC4wLjA6ODE5NiAtLXdvcmtlcnMgMiAtLWFjY2Vzcy1sb2dmaWxlIC0gLS1lcnJvci1sb2dmaWxlIC0gYXBwOmFwcApgYGAKCuWQr+WKqOWQjuiuv+mXru+8mmBodHRwOi8vbG9jYWxob3N0OjgxOTZgCgotLS0KCiMjIOmmluasoeS9v+eUqAoKMS4g5omT5byA6aG16Z2i77yM6L6T5YWl6buY6K6k5a+G56CBIGBhZG1pbmAg55m75b2VCjIuIOi/m+WFpeOAjOKame+4jyDphY3nva7jgI3pobXvvIzloavlhaXohb7orq/kupEgU2VjcmV0SWQgLyBTZWNyZXRLZXnvvIzpgInmi6nljLrln5/vvIzngrnlh7vjgIzmtYvor5Xov57mjqXjgI3pqozor4HlkI7kv53lrZgKMy4g6L+U5Zue6aaW6aG15Y2z5Y+v5byA5aeL566h55CG56uZ54K55ZKM5Z+f5ZCNCgojIyDohb7orq/kupHlr4bpkqXojrflj5YKCueZu+W9leiFvuiur+S6keiuv+mXrueuoeeQhuaOp+WItuWPsO+8mlvorr/pl67lr4bpkqXnrqHnkIZdKGh0dHBzOi8vY29uc29sZS5jbG91ZC50ZW5jZW50LmNvbS9jYW0vY2FwaSkKCuaOqOiNkOS9v+eUqOWtkOi0puWPt+WvhumSpeW5tuaOiOadgyBgUWNsb3VkVEVPRnVsbEFjY2Vzc2Ag562W55Wl44CCCg==
+# EdgeOne 域名管理
+
+腾讯云 EdgeOne 加速域名管理工具，支持域名列表、编辑、启停、删除、HTTPS 配置、CNAME 一键添加、DDNS 自动更新源站组 IP 等功能。
+
+## 功能特性
+
+- 域名管理：列出、添加、编辑、启用/停用、删除加速域名
+- HTTPS 配置：一键开启/关闭 HTTPS，查看证书信息
+- CNAME 自动添加：根据站点接入类型自动创建并启用 CNAME 记录
+- IPv6 支持：域名可开启 IPv6 加速，列表显示 IPv6 状态
+- DDNS 自动更新源站组：定时检测本机 IP，自动更新 EdgeOne 源站组
+  - 支持 IPv4 / IPv6
+  - 支持网卡获取 / 公网接口获取两种方式
+  - 支持自定义更新间隔
+  - 支持 Webhook 消息推送（钉钉 / 企业微信机器人）
+- 日志查看：应用运行日志、EdgeOne API 调用日志、DDNS 运行日志
+- 管理员认证：单用户密码登录，默认密码 `admin`，支持修改
+
+## 默认密码
+
+首次登录使用默认密码：
+
+```
+admin
+```
+
+请登录后及时在「🔑 改密」中修改。
+
+忘记密码可重装应用自动重置，或 SSH 执行 `/var/apps/edgeone-manager/cmd/reset_password` 重置。
+
+---
+
+## 部署方式
+
+### 方式一：飞牛 NAS FPK 安装（推荐）
+
+在 [Releases](https://github.com/gyc2432/edgeone-deocker/releases) 下载最新的 `edgeone-manager.fpk`，上传到飞牛 NAS 应用中心手动安装即可。
+
+安装完成后访问：`http://<NAS IP>:8196`
+
+---
+
+### 方式二：Docker 手动运行
+
+```bash
+docker run -d \
+  --name edgeone-manager \
+  --network host \
+  -v /path/to/data:/app/data \
+  -e APP_PORT=8196 \
+  -e DATA_DIR=/app/data \
+  gyc2432/edgeone-manager:latest
+```
+
+启动后访问：`http://localhost:8196`
+
+#### 参数说明
+
+| 参数 | 说明 | 默认值 |
+|------|------|--------|
+| `--network host` | 使用宿主机网络（推荐，支持多网卡） | - |
+| `-p 8196:8196` | 不用 host 网络时，用端口映射替代 | - |
+| `-v /path/to/data:/app/data` | 配置与日志持久化目录 | 必需 |
+| `-e APP_PORT=8196` | 应用监听端口 | `8196` |
+| `-e DATA_DIR=/app/data` | 数据目录（与 volume 对应） | `/app/data` |
+| `-e TENCENTCLOUD_SECRET_ID=xxx` | 腾讯云 SecretId（环境变量方式） | - |
+| `-e TENCENTCLOUD_SECRET_KEY=xxx` | 腾讯云 SecretKey（环境变量方式） | - |
+| `-e EDGEONE_REGION=ap-guangzhou` | EdgeOne 区域 | `ap-guangzhou` |
+
+---
+
+### 方式三：Docker Compose 运行
+
+创建 `docker-compose.yml`：
+
+```yaml
+services:
+  edgeone-manager:
+    image: gyc2432/edgeone-manager:latest
+    container_name: edgeone-manager
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./data:/app/data
+    environment:
+      - APP_PORT=8196
+      - DATA_DIR=/app/data
+      # 可选：通过环境变量预设腾讯云密钥（也可登录后在配置页设置）
+      # - TENCENTCLOUD_SECRET_ID=your_secret_id
+      # - TENCENTCLOUD_SECRET_KEY=your_secret_key
+      # - EDGEONE_REGION=ap-guangzhou
+```
+
+启动：
+
+```bash
+docker compose up -d
+```
+
+启动后访问：`http://localhost:8196`
+
+---
+
+### 方式四：手动运行 Python
+
+#### 环境要求
+
+- Python 3.12+
+- [uv](https://github.com/astral-sh/uv)（推荐）或 pip
+
+#### 1. 克隆项目
+
+```bash
+git clone https://github.com/gyc2432/edgeone-deocker.git
+cd edgeone-deocker
+```
+
+#### 2. 创建虚拟环境并安装依赖
+
+使用 uv：
+
+```bash
+uv venv
+uv pip install -r requirements.txt
+```
+
+或使用 pip：
+
+```bash
+python -m venv .venv
+source .venv/bin/activate      # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+#### 3. 配置（可选）
+
+复制 `.env.example` 为 `.env`，填入腾讯云密钥（也可登录后在配置页设置）：
+
+```bash
+cp .env.example .env
+# 编辑 .env，填入 TENCENTCLOUD_SECRET_ID 和 TENCENTCLOUD_SECRET_KEY
+```
+
+#### 4. 启动应用
+
+使用 Flask 开发服务器：
+
+```bash
+# Windows
+.venv\Scripts\activate
+python app.py
+
+# Linux/macOS
+source .venv/bin/activate
+python app.py
+```
+
+或使用 gunicorn（推荐生产环境）：
+
+```bash
+gunicorn --bind 0.0.0.0:8196 --workers 2 --access-logfile - --error-logfile - app:app
+```
+
+启动后访问：`http://localhost:8196`
+
+---
+
+## 首次使用
+
+1. 打开页面，输入默认密码 `admin` 登录
+2. 进入「⚙️ 配置」页，填入腾讯云 SecretId / SecretKey，选择区域，点击「测试连接」验证后保存
+3. 返回首页即可开始管理站点和域名
+
+## 腾讯云密钥获取
+
+登录腾讯云访问管理控制台：[访问密钥管理](https://console.cloud.tencent.com/cam/capi)
+
+推荐使用子账号密钥并授权 `QcloudTEOFullAccess` 策略。
