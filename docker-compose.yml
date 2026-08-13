@@ -1,10 +1,10 @@
 version: "3.8"
 
 services:
-  edgeone-manager:
+  edgeone-domain-manage:
     build: .
-    image: edgeone-manager:latest
-    container_name: edgeone-manager
+    image: gyc2432/edgeone-domain-manage:latest
+    container_name: edgeone-domain-manage
     restart: unless-stopped
     ports:
       - "8196:8196"

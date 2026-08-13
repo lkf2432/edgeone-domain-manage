@@ -26,7 +26,7 @@ admin
 
 请登录后及时在「🔑 改密」中修改。
 
-忘记密码可重装应用自动重置，或 SSH 执行 `/var/apps/edgeone-manager/cmd/reset_password` 重置。
+忘记密码可重装应用自动重置，或 SSH 执行 `/var/apps/edgeone-domain-manage/cmd/reset_password` 重置。
 
 ---
 
@@ -34,7 +34,7 @@ admin
 
 ### 方式一：飞牛 NAS FPK 安装（推荐）
 
-在 [Releases](https://github.com/gyc2432/edgeone-deocker/releases) 下载最新的 `edgeone-manager.fpk`，上传到飞牛 NAS 应用中心手动安装即可。
+在 [Releases](https://github.com/lkf2432/edgeone-domain-manage/releases) 下载最新的 `edgeone-domain-manage.fpk`，上传到飞牛 NAS 应用中心手动安装即可。
 
 安装完成后访问：`http://<NAS IP>:8196`
 
@@ -44,12 +44,12 @@ admin
 
 ```bash
 docker run -d \
-  --name edgeone-manager \
+  --name edgeone-domain-manage \
   --network host \
   -v /path/to/data:/app/data \
   -e APP_PORT=8196 \
   -e DATA_DIR=/app/data \
-  gyc2432/edgeone-manager:latest
+  gyc2432/edgeone-domain-manage:latest
 ```
 
 启动后访问：`http://localhost:8196`
@@ -75,9 +75,9 @@ docker run -d \
 
 ```yaml
 services:
-  edgeone-manager:
-    image: gyc2432/edgeone-manager:latest
-    container_name: edgeone-manager
+  edgeone-domain-manage:
+    image: gyc2432/edgeone-domain-manage:latest
+    container_name: edgeone-domain-manage
     restart: unless-stopped
     network_mode: host
     volumes:
@@ -111,8 +111,8 @@ docker compose up -d
 #### 1. 克隆项目
 
 ```bash
-git clone https://github.com/gyc2432/edgeone-deocker.git
-cd edgeone-deocker
+git clone https://github.com/lkf2432/edgeone-domain-manage.git
+cd edgeone-domain-manage
 ```
 
 #### 2. 创建虚拟环境并安装依赖

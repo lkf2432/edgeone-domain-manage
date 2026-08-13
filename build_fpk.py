@@ -182,7 +182,7 @@ def build_fpk():
     step(4, 4, "构建 FPK 安装包...")
     fnpack_path = download_fnpack()
 
-    output_file = os.path.join(PROJECT_ROOT, "edgeone-manager.fpk")
+    output_file = os.path.join(PROJECT_ROOT, "edgeone-domain-manage.fpk")
 
     if fnpack_path and os.path.exists(fnpack_path):
         import subprocess
@@ -200,7 +200,7 @@ def build_fpk():
             # 查找生成的 fpk 文件
             generated = None
             for f in os.listdir(PROJECT_ROOT):
-                if f.endswith(".fpk") and f != "edgeone-manager.fpk":
+                if f.endswith(".fpk") and f != "edgeone-domain-manage.fpk":
                     generated = os.path.join(PROJECT_ROOT, f)
                     break
             # 也可能在 build 目录下
@@ -230,18 +230,18 @@ def build_fpk():
         size_kb = os.path.getsize(output_file) / 1024
         print("=" * 50)
         print("  Docker FPK 构建完成!")
-        print(f"  输出: edgeone-manager.fpk ({size_kb:.1f} KB)")
+        print(f"  输出: edgeone-domain-manage.fpk ({size_kb:.1f} KB)")
         print("=" * 50)
         print()
         print("安装方法:")
-        print("  1. 将 edgeone-manager.fpk 上传到飞牛NAS")
+        print("  1. 将 edgeone-domain-manage.fpk 上传到飞牛NAS")
         print("  2. fnOS 应用中心 -> 手动安装 -> 选择 .fpk 文件")
-        print("  3. 或 SSH 执行: appcenter-cli install-fpk edgeone-manager.fpk")
+        print("  3. 或 SSH 执行: appcenter-cli install-fpk edgeone-domain-manage.fpk")
         print()
         print("注意:")
-        print("  - 首次安装时会在 NAS 上构建 Docker 镜像，请耐心等待")
+        print("  - 首次安装时会自动从 Docker Hub 拉取镜像，请耐心等待")
         print("  - 默认管理员密码: admin")
-        print("  - 忘记密码: SSH 执行 /var/apps/edgeone-manager/cmd/reset_password")
+        print("  - 忘记密码: SSH 执行 /var/apps/edgeone-domain-manage/cmd/reset_password")
     else:
         print("构建失败!")
         sys.exit(1)
