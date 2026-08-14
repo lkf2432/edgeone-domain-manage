@@ -45,7 +45,7 @@ admin
 ```bash
 docker run -d \
   --name edgeone-domain-manage \
-  --network host \
+  -p 8196:8196 \
   -v /path/to/data:/app/data \
   -e APP_PORT=8196 \
   -e DATA_DIR=/app/data \
@@ -58,8 +58,7 @@ docker run -d \
 
 | 参数 | 说明 | 默认值 |
 |------|------|--------|
-| `--network host` | 使用宿主机网络（推荐，支持多网卡） | - |
-| `-p 8196:8196` | 不用 host 网络时，用端口映射替代 | - |
+| `-p 8196:8196` | 端口映射（宿主机:容器） | 必需 |
 | `-v /path/to/data:/app/data` | 配置与日志持久化目录 | 必需 |
 | `-e APP_PORT=8196` | 应用监听端口 | `8196` |
 | `-e DATA_DIR=/app/data` | 数据目录（与 volume 对应） | `/app/data` |
@@ -79,7 +78,8 @@ services:
     image: gyc2432/edgeone-domain-manage:latest
     container_name: edgeone-domain-manage
     restart: unless-stopped
-    network_mode: host
+    ports:
+      - "8196:8196"
     volumes:
       - ./data:/app/data
     environment:
