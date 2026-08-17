@@ -63,4 +63,4 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Output image digest
-        run: echo "镜像构建完成，digest: ${{ steps.build-push.outputs.digest }}"
+        run: 'echo "镜像构建完成, digest=${{ steps.build-push.outputs.digest }}"'
