@@ -24,18 +24,32 @@ BUILD_DIR = os.path.join(PROJECT_ROOT, "fpk_build")
 FNPACK_VERSION = "1.2.1"
 
 
+def _read_version():
+    """从 fpk_base/manifest 读取应用版本号"""
+    manifest = os.path.join(PROJECT_ROOT, "fpk_base", "manifest")
+    if os.path.exists(manifest):
+        with open(manifest, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith("version"):
+                    parts = line.split("=", 1)
+                    if len(parts) == 2:
+                        return parts[1].strip()
+    return "1.0.0"
+
+
+APP_VERSION = _read_version()
+
+
 def _fnpack_artifact():
-    """根据当前系统返回 fnpack 二进制文件名后缀 + 下载 URL"""
+    """返回 fnpack 二进制文件名后缀 + 下载 URL（固定 amd64，Docker 应用无需 arm64）"""
     system = platform.system().lower()
-    machine = platform.machine().lower()
-    arch = "arm64" if ("arm" in machine or "aarch64" in machine) else "amd64"
     if system.startswith("win"):
-        # Windows 版无扩展名
-        suffix = f"windows-{arch}"
+        suffix = "windows-amd64"
     elif system == "darwin":
-        suffix = f"darwin-{arch}"
+        suffix = "darwin-amd64"
     else:
-        suffix = f"linux-{arch}"
+        suffix = "linux-amd64"
     url = f"https://static2.fnnas.com/fnpack/fnpack-{FNPACK_VERSION}-{suffix}"
     return suffix, url
 
@@ -266,7 +280,7 @@ def build_fpk():
             # 查找生成的 fpk 文件
             generated = None
             for f in os.listdir(PROJECT_ROOT):
-                if f.endswith(".fpk") and f != "edgeone-domain-manage.fpk":
+                if f.endswith(".fpk") and f != output_name:
                     generated = os.path.join(PROJECT_ROOT, f)
                     break
             # 也可能在 build 目录下
@@ -296,13 +310,13 @@ def build_fpk():
         size_kb = os.path.getsize(output_file) / 1024
         print("=" * 50)
         print("  Docker FPK 构建完成!")
-        print(f"  输出: edgeone-domain-manage.fpk ({size_kb:.1f} KB)")
+        print(f"  输出: {output_name} ({size_kb:.1f} KB)")
         print("=" * 50)
         print()
         print("安装方法:")
-        print("  1. 将 edgeone-domain-manage.fpk 上传到飞牛NAS")
+        print(f"  1. 将 {output_name} 上传到飞牛NAS")
         print("  2. fnOS 应用中心 -> 手动安装 -> 选择 .fpk 文件")
-        print("  3. 或 SSH 执行: appcenter-cli install-fpk edgeone-domain-manage.fpk")
+        print(f"  3. 或 SSH 执行: appcenter-cli install-fpk {output_name}")
         print()
         print("注意:")
         print("  - 首次安装时会自动从 Docker Hub 拉取镜像，请耐心等待")
