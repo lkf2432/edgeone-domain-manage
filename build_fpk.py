@@ -63,6 +63,18 @@ def copy_source():
             else:
                 shutil.copy2(src_item, dst_item)
         print(f"  <- fpk_base/（预置 manifest/cmd/config/ui/config）")
+        # 给 cmd/ 目录下所有脚本强制加执行权限（防止 Windows 提交的 git mode=644 导致 fnOS 下无法执行）
+        cmd_dir = os.path.join(BUILD_DIR, "cmd")
+        if os.path.isdir(cmd_dir):
+            for cmd_f in os.listdir(cmd_dir):
+                cmd_path = os.path.join(cmd_dir, cmd_f)
+                if os.path.isfile(cmd_path):
+                    try:
+                        st = os.stat(cmd_path)
+                        os.chmod(cmd_path, st.st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+                    except Exception as e:
+                        print(f"  !! chmod +x {cmd_f} 失败: {e}")
+            print(f"  -> cmd/* 已添加可执行权限 (chmod +x)")
     else:
         print(f"  !! fpk_base/ 目录不存在（{base_dir}），将缺失 manifest/cmd 等预置文件")
 
