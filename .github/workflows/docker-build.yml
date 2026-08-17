@@ -5,18 +5,16 @@
 #   DOCKERHUB_TOKEN     - Docker Hub Access Token（Profile → Account Settings → Security → New Token）
 #
 # 触发条件：
-#   - 推送到 main 分支（自动打 latest + sha 标签）
-#   - 推送 v* 形式 tag，如 v1.2.3（自动打 1.2.3 / 1.2 / 1 / latest 标签）
+#   - 推送到 main 分支（自动推 :latest）
 #   - Actions 页面手动触发（workflow_dispatch）
 #
-# 镜像地址：docker.io/gyc2432/edgeone-domain-manage
+# 镜像地址：docker.io/gyc2432/edgeone-domain-manage:latest
 
 name: Build and Push Docker Image
 
 on:
   push:
     branches: [main]
-    tags: ['v*']
   workflow_dispatch:
 
 env:
@@ -42,19 +40,14 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # 自动生成镜像标签：latest / 语义版本 / 分支名 / commit sha
-      - name: Extract metadata (tags, labels)
+      # 所有推送一律只打 :latest
+      - name: Extract metadata (labels)
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
-            type=sha,format=short
-            type=ref,event=branch
+            type=raw,value=latest,enable=true
 
       - name: Build and push
         id: build-push
