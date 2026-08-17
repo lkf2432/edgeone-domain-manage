@@ -18,6 +18,13 @@ const API = {
     ddnsRun: "/api/ddns/run",
     ddnsTestWebhook: "/api/ddns/test-webhook",
     ddnsLogs: (lines) => `/api/ddns/logs?lines=${lines || 500}`,
+    rules: (zid) => `/api/zones/${zid}/rules`,
+    rule: (zid, rid) => `/api/zones/${zid}/rules/${encodeURIComponent(rid)}`,
+    createRule: (zid) => `/api/zones/${zid}/rules`,
+    modifyRule: (zid, rid) => `/api/zones/${zid}/rules/${encodeURIComponent(rid)}`,
+    ruleStatus: (zid, rid) => `/api/zones/${zid}/rules/${encodeURIComponent(rid)}/status`,
+    deleteRule: (zid, rid) => `/api/zones/${zid}/rules/${encodeURIComponent(rid)}`,
+    ruleTemplate: () => `/api/rule-template`,
 };
 
 const state = { zones: [], domains: [], zoneId: "" };
@@ -755,33 +762,47 @@ function applyConfigState(cfg) {
 }
 
 // ---------- 模态框 ----------
-function openModal(title, bodyHtml, footerButtons) {
+// 创建一个按钮元素（footer 和 header 共用）
+function _makeModalBtn(b) {
+    const btn = document.createElement("button");
+    btn.className = `btn ${b.class || ""}`;
+    btn.textContent = b.label;
+    btn.addEventListener("click", async () => {
+        // ghost/取消类按钮不阻塞
+        if (b.class === "ghost") { b.onClick(); return; }
+        if (btn.disabled) return;
+        btn.disabled = true;
+        const origText = b.label;
+        btn.textContent = "处理中...";
+        try { await b.onClick(); }
+        finally {
+            // 若弹窗已关闭则无需恢复；否则恢复按钮状态
+            if ($("#modalOverlay").classList.contains("active")) {
+                btn.disabled = false;
+                btn.textContent = origText;
+            }
+        }
+    });
+    return btn;
+}
+
+function openModal(title, bodyHtml, footerButtons, opts = {}) {
     $("#modalTitle").textContent = title;
     $("#modalBody").innerHTML = bodyHtml;
     const footer = $("#modalFooter");
     footer.innerHTML = "";
-    footerButtons.forEach((b) => {
-        const btn = document.createElement("button");
-        btn.className = `btn ${b.class || ""}`;
-        btn.textContent = b.label;
-        btn.addEventListener("click", async () => {
-            // ghost/取消类按钮不阻塞
-            if (b.class === "ghost") { b.onClick(); return; }
-            if (btn.disabled) return;
-            btn.disabled = true;
-            const origText = b.label;
-            btn.textContent = "处理中...";
-            try { await b.onClick(); }
-            finally {
-                // 若弹窗已关闭则无需恢复；否则恢复按钮状态
-                if ($("#modalOverlay").classList.contains("active")) {
-                    btn.disabled = false;
-                    btn.textContent = origText;
-                }
-            }
-        });
-        footer.appendChild(btn);
-    });
+    (footerButtons || []).forEach((b) => footer.appendChild(_makeModalBtn(b)));
+
+    // 顶部 header 工具栏按钮（如"添加规则"、"关闭"）
+    const headerActions = $("#modalHeaderActions");
+    headerActions.innerHTML = "";
+    (opts.headerActions || []).forEach((b) => headerActions.appendChild(_makeModalBtn(b)));
+
+    // 弹窗尺寸变体：modal-rules（规则引擎放大）、modal-lg 等
+    const box = $("#modalBox");
+    box.classList.remove("modal-rules", "modal-lg");
+    if (opts.size === "rules") box.classList.add("modal-rules");
+
     $("#modalOverlay").classList.add("active");
 }
 
@@ -797,6 +818,268 @@ function closeModal() {
         _logsTimer = null;
     }
     $("#modalOverlay").classList.remove("active");
+}
+
+// 关闭规则引擎弹窗后强制刷新域名管理表格（规则启停/修改/删除/创建可能影响域名状态）
+function closeRulesModal() {
+    closeModal();
+    loadDomains();
+}
+
+// ---------- 规则引擎 ----------
+async function openRulesModal() {
+    if (!state.zoneId) return toast("请先选择站点", "error");
+    openModal("规则引擎 - 加载中", `<p>正在读取规则列表...</p>`, []);
+    try {
+        const r = await http(API.rules(state.zoneId));
+        renderRulesList(r.rules || []);
+    } catch (e) {
+        closeModal();
+        toast(e.message, "error");
+    }
+}
+
+function renderRulesList(rules) {
+    if (!rules.length) {
+        openModal("规则引擎 - 规则列表", `
+            <p style="color:var(--muted);margin-top:0">当前站点下暂无规则引擎规则。</p>
+            <div class="hint">点击右上角 <strong>"添加规则"</strong> 按钮可创建一条新的加速规则。</div>
+        `, [], {
+            size: "rules",
+            headerActions: [
+                { label: "+ 添加规则", class: "primary", onClick: openAddRuleModal },
+                { label: "关闭", class: "ghost", onClick: closeRulesModal },
+            ],
+        });
+        return;
+    }
+    const rows = rules.map((r) => {
+        const st = (r.Status || "").toLowerCase();
+        const isOn = st === "enable";
+        const statusBadge = isOn
+            ? '<span class="badge online">启用</span>'
+            : st === "disable"
+            ? '<span class="badge offline">停用</span>'
+            : `<span class="badge processing">${esc(r.Status || "未知")}</span>`;
+        const rid = esc(r.RuleId || "");
+        const toggleLabel = isOn ? "停用" : "启用";
+        const toggleClass = isOn ? "warn" : "primary";
+        return `
+        <tr>
+            <td><code>${rid}</code></td>
+            <td>${esc(r.RuleName || "-")}</td>
+            <td>${statusBadge}</td>
+            <td>${esc(r.RulePriority ?? "-")}</td>
+            <td class="col-actions">
+                <button class="btn sm ${toggleClass}" data-act="toggle" data-rid="${rid}" data-status="${isOn ? "disable" : "enable"}">${toggleLabel}</button>
+                <button class="btn sm ghost" data-act="view" data-rid="${rid}">查看</button>
+                <button class="btn sm ghost" data-act="edit" data-rid="${rid}">修改</button>
+                <button class="btn sm danger" data-act="delete" data-rid="${rid}" data-name="${esc(r.RuleName || "")}">删除</button>
+            </td>
+        </tr>`;
+    }).join("");
+    const body = `
+    <p style="color:var(--muted);margin-top:0">当前站点共 ${rules.length} 条规则（按优先级升序排列，数值小先执行）。</p>
+    <div class="table-wrap">
+        <table class="domain-table">
+            <thead><tr><th>规则 ID</th><th>规则名</th><th>状态</th><th>优先级</th><th class="col-actions">操作</th></tr></thead>
+            <tbody>${rows}</tbody>
+        </table>
+    </div>`;
+    openModal("规则引擎 - 规则列表", body, [], {
+        size: "rules",
+        headerActions: [
+            { label: "+ 添加规则", class: "primary", onClick: openAddRuleModal },
+            { label: "关闭", class: "ghost", onClick: closeRulesModal },
+        ],
+    });
+    // 绑定操作按钮
+    document.querySelectorAll("[data-act][data-rid]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            const act = btn.dataset.act;
+            const rid = btn.dataset.rid;
+            if (act === "toggle") return toggleRuleStatus(rid, btn.dataset.status);
+            if (act === "view") return viewRule(rid);
+            if (act === "edit") return openEditRuleModal(rid);
+            if (act === "delete") return confirmDeleteRule(rid, btn.dataset.name);
+        });
+    });
+}
+
+async function toggleRuleStatus(ruleId, status) {
+    try {
+        const r = await http(API.ruleStatus(state.zoneId, ruleId), {
+            method: "PATCH",
+            body: JSON.stringify({ status }),
+        });
+        toast(r.message || "操作成功", "success");
+        openRulesModal();
+    } catch (e) {
+        toast(e.message, "error");
+    }
+}
+
+function confirmDeleteRule(ruleId, ruleName) {
+    openModal("删除规则", `
+        <p style="margin-top:0">确认删除以下规则吗？此操作不可撤销。</p>
+        <div class="hint">
+            规则 ID：<code>${esc(ruleId)}</code><br>
+            规则名：${esc(ruleName || "-")}
+        </div>
+    `, [
+        { label: "取消", class: "ghost", onClick: closeModal },
+        { label: "确认删除", class: "danger", onClick: deleteRule(ruleId) },
+    ], {
+        size: "rules",
+        headerActions: [{ label: "关闭", class: "ghost", onClick: closeRulesModal }],
+    });
+}
+
+function deleteRule(ruleId) {
+    return async () => {
+        try {
+            const r = await http(API.deleteRule(state.zoneId, ruleId), { method: "DELETE" });
+            toast(r.message || "已删除", "success");
+            closeModal();
+            openRulesModal();
+        } catch (e) {
+            toast(e.message, "error");
+        }
+    };
+}
+
+async function openEditRuleModal(ruleId) {
+    openModal("修改规则 - 加载中", `<p>正在读取规则 ${esc(ruleId)} 的内容...</p>`, [], {
+        size: "rules",
+        headerActions: [{ label: "关闭", class: "ghost", onClick: openRulesModal }],
+    });
+    let rule;
+    try {
+        rule = await http(API.rule(state.zoneId, ruleId));
+    } catch (e) {
+        closeModal();
+        toast(e.message, "error");
+        return;
+    }
+    const jsonStr = JSON.stringify(rule, null, 2);
+    const body = `
+    <p style="color:var(--muted);margin-top:0">编辑规则 JSON 后提交修改。<strong>RuleId 字段不可改</strong>（由后端强制锁定为当前规则）。</p>
+    <div class="hint" style="margin-bottom:8px">修改 Rule.Status 可启停；Branches/Actions 调整动作；保存即生效。不保存可点"关闭"返回列表。</div>
+    <textarea id="f-rule-json" class="form-control" rows="20" style="font-family:monospace;font-size:12px;white-space:pre;resize:vertical;min-height:400px">${esc(jsonStr)}</textarea>`;
+    openModal("修改规则", body, [], {
+        size: "rules",
+        headerActions: [
+            { label: "保存修改", class: "primary", onClick: submitEditRule(ruleId) },
+            { label: "关闭", class: "ghost", onClick: openRulesModal },
+        ],
+    });
+}
+
+function submitEditRule(ruleId) {
+    return async () => {
+        const txt = $("#f-rule-json").value;
+        let ruleJson;
+        try {
+            ruleJson = JSON.parse(txt);
+        } catch (e) {
+            toast("JSON 格式错误：" + e.message, "error");
+            return;
+        }
+        if (!ruleJson || typeof ruleJson !== "object") {
+            toast("JSON 必须是对象", "error");
+            return;
+        }
+        try {
+            const r = await http(API.modifyRule(state.zoneId, ruleId), {
+                method: "PUT",
+                body: JSON.stringify(ruleJson),
+            });
+            toast(r.message || "修改成功", "success");
+            closeModal();
+            openRulesModal();
+        } catch (e) {
+            toast(e.message, "error");
+        }
+    };
+}
+
+async function viewRule(ruleId) {
+    openModal("规则详情 - 加载中", `<p>正在读取规则 ${esc(ruleId)} 的内容...</p>`, [], {
+        size: "rules",
+        headerActions: [{ label: "关闭", class: "ghost", onClick: closeRulesModal }],
+    });
+    try {
+        const r = await http(API.rule(state.zoneId, ruleId));
+        const jsonStr = JSON.stringify(r, null, 2);
+        const body = `
+        <p style="color:var(--muted);margin-top:0">规则 <strong>${esc(ruleId)}</strong>（${esc(r.RuleName || "-")}）的完整内容：</p>
+        <pre style="max-height:60vh;overflow:auto;background:var(--bg-alt,#f6f8fa);border:1px solid var(--border);border-radius:6px;padding:12px;font-family:monospace;font-size:12px;white-space:pre-wrap;word-break:break-all;margin:0">${esc(jsonStr)}</pre>`;
+        openModal(`规则详情 - ${ruleId}`, body, [], {
+            size: "rules",
+            headerActions: [
+                { label: "复制 JSON", class: "ghost", onClick: () => {
+                    navigator.clipboard.writeText(jsonStr).then(
+                        () => toast("JSON 已复制到剪贴板", "success"),
+                        () => toast("复制失败，请手动选择文本", "error")
+                    );
+                }},
+                { label: "返回列表", class: "primary", onClick: openRulesModal },
+            ],
+        });
+    } catch (e) {
+        closeModal();
+        toast(e.message, "error");
+    }
+}
+
+async function openAddRuleModal() {
+    openModal("添加规则 - 加载中", `<p>正在加载默认规则模板...</p>`, [], {
+        size: "rules",
+        headerActions: [{ label: "关闭", class: "ghost", onClick: openRulesModal }],
+    });
+    let tpl;
+    try {
+        tpl = await http(API.ruleTemplate());
+    } catch (e) {
+        closeModal();
+        toast(e.message, "error");
+        return;
+    }
+    const jsonStr = JSON.stringify(tpl, null, 2);
+    const body = `
+    <p style="color:var(--muted);margin-top:0">编辑规则 JSON 后提交创建。请将模板中所有占位符替换为实际值（域名、规则名等）。</p>
+    <div class="hint" style="margin-bottom:8px">字段说明：Branches[].Condition 为匹配表达式（如 <code>${'${http.request.host}'} in ['xxx.com']</code>），Actions[].Name + XxxParameters 描述动作。不保存可点"关闭"返回列表。</div>
+    <textarea id="f-rule-json" class="form-control" rows="20" style="font-family:monospace;font-size:12px;white-space:pre;resize:vertical;min-height:400px">${esc(jsonStr)}</textarea>`;
+    openModal("添加规则", body, [], {
+        size: "rules",
+        headerActions: [
+            { label: "创建规则", class: "primary", onClick: submitAddRule },
+            { label: "关闭", class: "ghost", onClick: openRulesModal },
+        ],
+    });
+}
+
+async function submitAddRule() {
+    const txt = $("#f-rule-json").value;
+    let ruleJson;
+    try {
+        ruleJson = JSON.parse(txt);
+    } catch (e) {
+        toast("JSON 格式错误：" + e.message, "error");
+        return;
+    }
+    if (!ruleJson || !Array.isArray(ruleJson.Rules) || ruleJson.Rules.length === 0) {
+        toast("JSON 必须包含非空 Rules 数组", "error");
+        return;
+    }
+    try {
+        const r = await http(API.createRule(state.zoneId), { method: "POST", body: JSON.stringify(ruleJson) });
+        toast(r.message || "规则创建成功", "success");
+        closeModal();
+        openRulesModal();
+    } catch (e) {
+        toast(e.message, "error");
+    }
 }
 
 // ---------- DDNS 自动更新源站组 ----------
@@ -1244,10 +1527,18 @@ document.addEventListener("DOMContentLoaded", () => {
     $("#settingsBtn").addEventListener("click", openSettingsModal);
     $("#logsBtn").addEventListener("click", openLogsModal);
     $("#ddnsBtn").addEventListener("click", openDdnsModal);
+    $("#rulesBtn").addEventListener("click", openRulesModal);
     $("#changePwBtn").addEventListener("click", openChangePasswordModal);
     $("#logoutBtn").addEventListener("click", logout);
     $("#searchInput").addEventListener("input", renderDomains);
-    $("#modalClose").addEventListener("click", closeModal);
+    $("#modalClose").addEventListener("click", () => {
+        // 规则引擎弹窗（modalBox 带 modal-rules class）点 × 也强制刷新域名表格
+        if ($("#modalBox").classList.contains("modal-rules")) {
+            closeRulesModal();
+        } else {
+            closeModal();
+        }
+    });
     // 禁用点击弹窗外部关闭，仅通过按钮或关闭按钮关闭
     bootstrap();
 });

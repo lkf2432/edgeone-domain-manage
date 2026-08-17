@@ -7,6 +7,7 @@
 """
 
 import json
+import os
 import time
 from typing import Any, Dict, List
 
@@ -95,6 +96,43 @@ class EdgeOneClient:
             _log.error("[API] <- %s | FAIL | %.2fs | %s", action, elapsed, e)
             raise EdgeOneError(f"不支持的接口: {action}") from e
 
+    def _invoke_json(self, action: str, params: dict) -> dict:
+        """绕过 SDK model 序列化，直接用 dict 调用腾讯云 API。
+
+        用于 ModifyL7AccRule 等接口：SDK model 反序列化后再 _serialize 会把
+        所有 model 定义的属性（含值为 None 的字段）都加回来，腾讯云 API 不接受
+        显式 null 字段（报 FailedOperation.InvalidParam）。call_json 直接传 dict，
+        绕过此问题，配合 _strip_nulls 只传有效字段。
+        """
+        try:
+            params_safe = _sanitize(params)
+        except Exception:
+            params_safe = params
+        _log.info(
+            "[API] -> %s | region=%s | params=%s",
+            action, self.region, json.dumps(params_safe, ensure_ascii=False),
+        )
+        t0 = time.time()
+        try:
+            resp = self.client.call_json(action, params)
+            elapsed = time.time() - t0
+            try:
+                resp_summary = _summarize(resp) if isinstance(resp, dict) else resp
+            except Exception:
+                resp_summary = {"<serialize_error>": True}
+            _log.info(
+                "[API] <- %s | OK | %.2fs | resp=%s",
+                action, elapsed, json.dumps(resp_summary, ensure_ascii=False),
+            )
+            return resp
+        except TencentCloudSDKException as e:
+            elapsed = time.time() - t0
+            _log.error(
+                "[API] <- %s | FAIL | %.2fs | code=%s | msg=%s | requestId=%s",
+                action, elapsed, e.code, e.message, e.requestId,
+            )
+            raise EdgeOneError(f"{e.code}: {e.message}") from e
+
     @staticmethod
     def _to_dict(model) -> Dict[str, Any]:
         """把 SDK 模型对象转为字典。
@@ -105,6 +143,20 @@ class EdgeOneClient:
         if model is None:
             return {}
         return model._serialize(allow_none=True)
+
+    @staticmethod
+    def _strip_nulls(obj):
+        """递归删除 dict/list 中所有值为 None 的字段。
+
+        腾讯云 ModifyL7AccRule 等接口不接受显式 null 字段（会报 FailedOperation.InvalidParam），
+        提交前需清理。如 Action 里几十个 XxxParameters 只有实际用到的那个非 null，
+        清理后只保留有效字段。
+        """
+        if isinstance(obj, dict):
+            return {k: EdgeOneClient._strip_nulls(v) for k, v in obj.items() if v is not None}
+        if isinstance(obj, list):
+            return [EdgeOneClient._strip_nulls(item) for item in obj]
+        return obj
 
     # ------------------------------------------------------------------
     # 站点 (Zone)
@@ -466,6 +518,129 @@ class EdgeOneClient:
 
         resp = self._invoke("ModifyHostsCertificate", req)
         return self._to_dict(resp)
+
+    # ------------------------------------------------------------------
+    # 规则引擎 (Rule)
+    # 统一使用新版 L7AccRules 系列 API：
+    #   DescribeL7AccRules 列表 / 查单条
+    #   CreateL7AccRules    创建
+    #   ModifyL7AccRule     修改（含启停，改 Rule.Status）
+    #   DeleteL7AccRules    删除（批量按 RuleIds）
+    # 旧版 DescribeRules/CreateRule 的 RuleId 与新版不互通，已弃用。
+    # ------------------------------------------------------------------
+    def list_rules(self, zone_id: str) -> Dict[str, Any]:
+        """列出站点下所有规则引擎规则。
+
+        使用新版 DescribeL7AccRules（支持 Offset/Limit/TotalCount，且与 CreateL7AccRules
+        创建的规则 ID 体系一致，便于后续启停/修改/删除）。
+        """
+        if not zone_id:
+            raise EdgeOneError("缺少 zone_id")
+        req = models.DescribeL7AccRulesRequest()
+        req.ZoneId = zone_id
+        req.Offset = 0
+        req.Limit = 200
+        resp = self._invoke("DescribeL7AccRules", req)
+        rules: List[Dict[str, Any]] = [self._to_dict(r) for r in resp.Rules or []]
+        # 按优先级升序（数值小先执行）
+        rules.sort(key=lambda r: r.get("RulePriority", 0))
+        return {"rules": rules, "total": resp.TotalCount or len(rules)}
+
+    def get_rule(self, zone_id: str, rule_id: str) -> Dict[str, Any]:
+        """查询单条规则完整内容（含 Branches/Actions，JSON 视图用）。
+
+        新版 DescribeL7AccRules 不带 Filter 时返回完整规则列表，内存里按 RuleId 查找。
+        """
+        if not zone_id or not rule_id:
+            raise EdgeOneError("缺少 zone_id 或 rule_id")
+        req = models.DescribeL7AccRulesRequest()
+        req.ZoneId = zone_id
+        req.Offset = 0
+        req.Limit = 200
+        resp = self._invoke("DescribeL7AccRules", req)
+        items = resp.Rules or []
+        for item in items:
+            if getattr(item, "RuleId", "") == rule_id:
+                return self._to_dict(item)
+        raise EdgeOneError(f"未找到规则: {rule_id}")
+
+    def create_rule(self, zone_id: str, rule_json: Dict[str, Any]) -> Dict[str, Any]:
+        """用新版 L7AccRules API 创建规则引擎规则。
+
+        入参 rule_json 为前端用户编辑的完整 JSON，结构形如：
+            {"FormatVersion": "1.0", "Rules": [{"RuleName": "...", "Branches": [...], ...}]}
+        其中 Branches[].Condition 为表达式字符串（如 "${http.request.host} in ['xxx']"），
+        Branches[].Actions[].Name + XxxParameters 描述动作。
+        """
+        if not zone_id:
+            raise EdgeOneError("缺少 zone_id")
+        if not rule_json or "Rules" not in rule_json:
+            raise EdgeOneError("规则 JSON 缺少 Rules 字段")
+        # 补全每条规则的 Status（默认 enable），用户模板里通常没填
+        rules_list = rule_json["Rules"]
+        for r in rules_list:
+            if not r.get("Status"):
+                r["Status"] = "enable"
+        req = models.CreateL7AccRulesRequest()
+        req._deserialize({
+            "ZoneId": zone_id,
+            "Rules": rules_list,
+        })
+        resp = self._invoke("CreateL7AccRules", req)
+        return self._to_dict(resp)
+
+    def update_rule_status(self, zone_id: str, rule_id: str, status: str) -> Dict[str, Any]:
+        """启停规则：通过 ModifyL7AccRule 修改 Rule.Status 实现。
+
+        ModifyL7AccRule 要求传完整 Rule 对象，所以先 get_rule 取当前规则，
+        改 Status 后整体提交。用 _invoke_json + _strip_nulls 绕过 SDK model
+        序列化带来的显式 null 字段问题。RulePriority 是只读字段（修改优先级
+        要用 ModifyL7AccRulePriority 专用接口），提交前需删除。
+        """
+        if status not in ("enable", "disable"):
+            raise EdgeOneError("status 必须为 enable 或 disable")
+        rule = self.get_rule(zone_id, rule_id)
+        rule["Status"] = status
+        rule = self._strip_nulls(rule)
+        rule.pop("RulePriority", None)  # ModifyL7AccRule 不接受此字段
+        return self._invoke_json("ModifyL7AccRule", {"ZoneId": zone_id, "Rule": rule})
+
+    def modify_rule(self, zone_id: str, rule_id: str, rule_json: Dict[str, Any]) -> Dict[str, Any]:
+        """修改规则：用户编辑后的完整 Rule 对象通过 ModifyL7AccRule 提交。
+
+        入参 rule_json 为单条 Rule 对象（不是 {Rules: [...]} 包装），
+        后端会强制 RuleId = rule_id 以保证修改的是同一条规则。
+        用 _invoke_json + _strip_nulls 绕过 SDK model 序列化问题。
+        RulePriority 是只读字段（修改优先级要用 ModifyL7AccRulePriority 专用接口），提交前需删除。
+        """
+        if not zone_id or not rule_id:
+            raise EdgeOneError("缺少 zone_id 或 rule_id")
+        if not isinstance(rule_json, dict):
+            raise EdgeOneError("rule_json 必须是 JSON 对象")
+        rule_json["RuleId"] = rule_id
+        rule_json = self._strip_nulls(rule_json)
+        rule_json.pop("RulePriority", None)  # ModifyL7AccRule 不接受此字段
+        return self._invoke_json("ModifyL7AccRule", {"ZoneId": zone_id, "Rule": rule_json})
+
+    def delete_rule(self, zone_id: str, rule_id: str) -> Dict[str, Any]:
+        """删除单条规则：DeleteL7AccRules 支持批量，这里只传一个 RuleId。"""
+        if not zone_id or not rule_id:
+            raise EdgeOneError("缺少 zone_id 或 rule_id")
+        req = models.DeleteL7AccRulesRequest()
+        req._deserialize({"ZoneId": zone_id, "RuleIds": [rule_id]})
+        resp = self._invoke("DeleteL7AccRules", req)
+        return self._to_dict(resp)
+
+    def load_rule_template(self) -> Dict[str, Any]:
+        """读取本地默认规则模板 rule-engine-default.json（前端"添加规则"编辑器预填用）。"""
+        template_path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "rule-engine-default.json",
+        )
+        if not os.path.exists(template_path):
+            raise EdgeOneError(f"未找到规则模板文件: {template_path}")
+        with open(template_path, "r", encoding="utf-8") as f:
+            return json.load(f)
 
     # ------------------------------------------------------------------
     # 字段构造

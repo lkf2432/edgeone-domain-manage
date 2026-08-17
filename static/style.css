@@ -180,6 +180,8 @@ body {
 .btn.primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); color: #fff; }
 .btn.danger { background: var(--danger); color: #fff; border-color: var(--danger); }
 .btn.danger:hover { background: var(--danger-hover); border-color: var(--danger-hover); color: #fff; }
+.btn.warn { background: #f59e0b; color: #fff; border-color: #f59e0b; }
+.btn.warn:hover { background: #d97706; border-color: #d97706; color: #fff; }
 .btn.ghost { background: transparent; }
 .btn.sm { padding: 5px 10px; font-size: 12px; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -253,8 +255,10 @@ body {
     display: flex; align-items: center; justify-content: space-between;
     padding: 18px 22px;
     border-bottom: 1px solid var(--border);
+    gap: 12px;
 }
-.modal-header h3 { margin: 0; font-size: 16px; }
+.modal-header h3 { margin: 0; font-size: 16px; flex: 1; }
+.modal-header-actions { display: flex; align-items: center; gap: 8px; }
 .icon-btn {
     background: none; border: none; font-size: 22px;
     color: var(--muted); cursor: pointer; line-height: 1;
@@ -265,6 +269,13 @@ body {
     padding: 14px 22px;
     border-top: 1px solid var(--border);
     display: flex; justify-content: flex-end; gap: 10px;
+}
+.modal-footer:empty { display: none; }
+
+/* 规则引擎弹窗（放大，便于查看/编辑 JSON） */
+.modal.modal-rules {
+    max-width: 920px;
+    max-height: 95vh;
 }
 
 /* 表单 */

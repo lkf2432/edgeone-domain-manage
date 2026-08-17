@@ -1,4 +1,6 @@
-FROM python:3.12-slim
+# 生产(GitHub Actions 在国外)用默认 docker.io；本地国内构建可用 --build-arg PYTHON_IMAGE=docker.m.daocloud.io/library/python:3.12-slim
+ARG PYTHON_IMAGE=python:3.12-slim
+FROM ${PYTHON_IMAGE}
 
 WORKDIR /app
 
@@ -8,6 +10,7 @@ RUN pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple -r re
 
 # 复制项目文件
 COPY app.py edgeone_client.py settings.py logger_setup.py ddns_scheduler.py ip_detector.py notifier.py ./
+COPY rule-engine-default.json ./
 COPY templates/ ./templates/
 COPY static/ ./static/
 

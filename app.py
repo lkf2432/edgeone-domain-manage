@@ -328,6 +328,102 @@ def api_delete_domain(zone_id):
 
 
 # ------------------------------------------------------------------
+# 规则引擎 (Rule)
+# ------------------------------------------------------------------
+@app.route("/api/zones/<zone_id>/rules")
+def api_list_rules(zone_id):
+    """列出站点下所有规则引擎规则。"""
+    return jsonify(get_client().list_rules(zone_id))
+
+
+@app.route("/api/zones/<zone_id>/rules/<path:rule_id>")
+def api_get_rule(zone_id, rule_id):
+    """查看单条规则完整内容（JSON 格式，含 If/Then）。"""
+    return jsonify(get_client().get_rule(zone_id, rule_id))
+
+
+@app.route("/api/zones/<zone_id>/rules", methods=["POST"])
+def api_create_rule(zone_id):
+    """创建一条规则引擎规则（新版 L7AccRules，Body 为完整规则 JSON）。"""
+    try:
+        rule_json = request.get_json(force=True, silent=True)
+        if not isinstance(rule_json, dict):
+            return jsonify({"error": "请求体必须是 JSON 对象"}), 400
+        result = get_client().create_rule(zone_id, rule_json)
+        rule_ids = result.get("RuleIds") or []
+        _log.info("[RULE] 已创建规则 RuleIds=%s", rule_ids)
+        return jsonify({
+            "ok": True,
+            "ruleIds": rule_ids,
+            "message": "规则创建成功",
+        })
+    except EdgeOneError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        _log.exception("[RULE] 创建规则异常")
+        return jsonify({"error": f"服务器内部错误: {e}"}), 500
+
+
+@app.route("/api/zones/<zone_id>/rules/<path:rule_id>", methods=["PUT"])
+def api_modify_rule(zone_id, rule_id):
+    """修改单条规则（Body 为完整 Rule 对象，后端强制 RuleId = 路径中的 rule_id）。"""
+    try:
+        rule_json = request.get_json(force=True, silent=True)
+        if not isinstance(rule_json, dict):
+            return jsonify({"error": "请求体必须是 JSON 对象"}), 400
+        get_client().modify_rule(zone_id, rule_id, rule_json)
+        _log.info("[RULE] 已修改规则 RuleId=%s", rule_id)
+        return jsonify({"ok": True, "message": "规则修改成功"})
+    except EdgeOneError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        _log.exception("[RULE] 修改规则异常")
+        return jsonify({"error": f"服务器内部错误: {e}"}), 500
+
+
+@app.route("/api/zones/<zone_id>/rules/<path:rule_id>/status", methods=["PATCH"])
+def api_update_rule_status(zone_id, rule_id):
+    """启停规则（Body: {"status": "enable" | "disable"}）。"""
+    try:
+        body = request.get_json(force=True, silent=True) or {}
+        status = (body.get("status") or "").strip()
+        if status not in ("enable", "disable"):
+            return jsonify({"error": "status 必须为 enable 或 disable"}), 400
+        get_client().update_rule_status(zone_id, rule_id, status)
+        action = "启用" if status == "enable" else "停用"
+        _log.info("[RULE] 已%s规则 RuleId=%s", action, rule_id)
+        return jsonify({"ok": True, "message": f"规则已{action}"})
+    except EdgeOneError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        _log.exception("[RULE] 启停规则异常")
+        return jsonify({"error": f"服务器内部错误: {e}"}), 500
+
+
+@app.route("/api/zones/<zone_id>/rules/<path:rule_id>", methods=["DELETE"])
+def api_delete_rule(zone_id, rule_id):
+    """删除单条规则。"""
+    try:
+        get_client().delete_rule(zone_id, rule_id)
+        _log.info("[RULE] 已删除规则 RuleId=%s", rule_id)
+        return jsonify({"ok": True, "message": "规则删除成功"})
+    except EdgeOneError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        _log.exception("[RULE] 删除规则异常")
+        return jsonify({"error": f"服务器内部错误: {e}"}), 500
+
+
+@app.route("/api/rule-template")
+def api_rule_template():
+    """返回本地默认规则模板（前端"添加规则"编辑器预填用）。"""
+    try:
+        return jsonify(get_client().load_rule_template())
+    except EdgeOneError as e:
+        return jsonify({"error": str(e)}), 400
+
+
+# ------------------------------------------------------------------
 # 日志查询接口
 # ------------------------------------------------------------------
 @app.route("/api/logs", methods=["GET"])
