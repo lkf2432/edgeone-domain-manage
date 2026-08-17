@@ -13,16 +13,9 @@
                 "Switch": "on",
                 "Timeout": 300
               }
-            },
-            {
-              "Name": "Cache",
-              "CacheParameters": {
-                "NoCache": {
-                  "Switch": "on"
-                }
-              }
             }
-          ]
+          ],
+          "SubRules": []
         }
       ],
       "Description": []
