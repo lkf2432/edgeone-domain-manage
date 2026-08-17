@@ -18,8 +18,9 @@ RUN mkdir -p /app/data /app/logs
 ENV APP_PORT=8196
 ENV PYTHONUNBUFFERED=1
 ENV DATA_DIR=/app/data
+ENV TZ=Asia/Shanghai
 
 EXPOSE 8196
 
-# 监听全网段 IPv4 (0.0.0.0) 的 8196 端口
-CMD ["gunicorn", "--bind", "0.0.0.0:8196", "--workers", "2", "--access-logfile", "-", "--error-logfile", "-", "app:app"]
+# 单 worker：DDNS 调度器为进程内线程，多 worker 会导致状态不一致
+CMD ["gunicorn", "--bind", "0.0.0.0:8196", "--workers", "1", "--threads", "4", "--access-logfile", "-", "--error-logfile", "-", "app:app"]

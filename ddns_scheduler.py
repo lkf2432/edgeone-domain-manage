@@ -14,7 +14,7 @@ import json
 import os
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, Optional
 
 import settings
@@ -24,6 +24,9 @@ from logger_setup import get_logger
 from notifier import send_message
 
 _log = get_logger("ddns")
+
+# 北京时间 UTC+8
+_CST = timezone(timedelta(hours=8))
 
 CONFIG_FILE = os.path.join(os.environ.get("DATA_DIR", os.path.dirname(os.path.abspath(__file__))), "ddns_config.json")
 
@@ -45,11 +48,36 @@ def _default_config() -> Dict[str, Any]:
         "interfaceName": "",       # 网卡名称，为空自动选择
         "webhookUrl": "",          # webhook 地址
         "webhookEnabled": False,   # 是否启用推送
+        "webhookTemplate": "",     # 自定义消息模板，为空则使用默认模板
         "lastIp": "",              # 上次更新的 IP
         "lastUpdate": "",          # 上次更新时间
         "lastStatus": "",          # 上次状态：success / fail / pending
         "lastMessage": "",         # 上次消息
     }
+
+
+# 默认 webhook 消息模板（Markdown 格式）
+_DEFAULT_TEMPLATE = """### {title}
+
+**源站组**: {group_name}
+**旧 IP**: {old_ip}
+**新 IP**: {new_ip}
+**状态**: {status}
+**时间**: {time}"""
+
+
+def _render_template(template: str, variables: Dict[str, str]) -> str:
+    """渲染消息模板，安全替换变量。
+
+    支持的变量：{title} {group_name} {old_ip} {new_ip} {status} {time} {message}
+    """
+    if not template or not template.strip():
+        template = _DEFAULT_TEMPLATE
+    try:
+        return template.format(**{k: (v or "") for k, v in variables.items()})
+    except (KeyError, IndexError, ValueError):
+        # 模板语法错误时回退到默认
+        return _DEFAULT_TEMPLATE.format(**{k: (v or "") for k, v in variables.items()})
 
 
 def load_config() -> Dict[str, Any]:
@@ -125,6 +153,20 @@ def apply_config_and_restart(new_config: Dict[str, Any]) -> Dict[str, Any]:
     return get_status()
 
 
+def auto_start() -> None:
+    """应用启动时自动恢复调度器状态。
+
+    读取已保存的配置，若 enabled=true 则自动启动后台调度线程。
+    解决进程重启（升级/刷新）后调度器丢失的问题。
+    """
+    cfg = load_config()
+    if cfg.get("enabled"):
+        _log.info("[DDNS] 检测到配置已启用，自动启动调度器...")
+        start_scheduler()
+    else:
+        _log.info("[DDNS] 配置未启用，调度器保持停止")
+
+
 def run_once() -> Dict[str, Any]:
     """手动执行一次 IP 检测和更新。"""
     return _do_update(load_config())
@@ -160,8 +202,9 @@ def _do_update(cfg: Dict[str, Any]) -> Dict[str, Any]:
     interface_name = cfg.get("interfaceName", "")
     webhook_url = cfg.get("webhookUrl", "")
     webhook_enabled = cfg.get("webhookEnabled", False)
+    webhook_template = cfg.get("webhookTemplate", "")
 
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    now = datetime.now(_CST).strftime("%Y-%m-%d %H:%M:%S")
 
     _log.info("[DDNS] 开始执行更新 | zoneId=%s | groupId=%s | groupName=%s | ipType=%s | method=%s | interface=%s",
               zone_id or "(空)", group_id or "(空)", group_name or "(空)",
@@ -186,7 +229,12 @@ def _do_update(cfg: Dict[str, Any]) -> Dict[str, Any]:
         _log.error("[DDNS] %s", msg)
         _update_status(cfg, "", now, "fail", msg)
         if webhook_enabled and webhook_url:
-            send_message(webhook_url, "EdgeOne DDNS 更新失败", msg)
+            content = _render_template(webhook_template, {
+                "title": "EdgeOne DDNS 更新失败", "group_name": group_name or group_id,
+                "old_ip": cfg.get("lastIp", ""), "new_ip": "(无)",
+                "status": "失败", "time": now, "message": msg,
+            })
+            send_message(webhook_url, "EdgeOne DDNS 更新失败", content)
         return {"ok": False, "message": msg}
 
     # 2. IP 是否变化
@@ -213,8 +261,12 @@ def _do_update(cfg: Dict[str, Any]) -> Dict[str, Any]:
         _update_status(cfg, new_ip, now, "success", msg)
 
         if webhook_enabled and webhook_url:
-            send_message(webhook_url, "EdgeOne DDNS 更新成功",
-                         f"**源站组**: {group_name or group_id}\n**旧 IP**: {old_ip or '(无)'}\n**新 IP**: {new_ip}\n**时间**: {now}")
+            content = _render_template(webhook_template, {
+                "title": "EdgeOne DDNS 更新成功", "group_name": group_name or group_id,
+                "old_ip": old_ip or "(无)", "new_ip": new_ip,
+                "status": "成功", "time": now, "message": msg,
+            })
+            send_message(webhook_url, "EdgeOne DDNS 更新成功", content)
 
         return {"ok": True, "message": msg, "ip": new_ip, "changed": True}
     except (EdgeOneError, Exception) as e:
@@ -222,8 +274,12 @@ def _do_update(cfg: Dict[str, Any]) -> Dict[str, Any]:
         _log.error("[DDNS] %s", msg)
         _update_status(cfg, new_ip, now, "fail", msg)
         if webhook_enabled and webhook_url:
-            send_message(webhook_url, "EdgeOne DDNS 更新失败",
-                         f"**源站组**: {group_name or group_id}\n**IP**: {new_ip}\n**错误**: {e}\n**时间**: {now}")
+            content = _render_template(webhook_template, {
+                "title": "EdgeOne DDNS 更新失败", "group_name": group_name or group_id,
+                "old_ip": old_ip or "(无)", "new_ip": new_ip,
+                "status": "失败", "time": now, "message": msg,
+            })
+            send_message(webhook_url, "EdgeOne DDNS 更新失败", content)
         return {"ok": False, "message": msg, "ip": new_ip}
 
 

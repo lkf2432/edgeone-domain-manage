@@ -923,6 +923,15 @@ function renderDdnsModal(cfg, groups) {
                 <button class="btn ghost sm" id="testWebhookBtn">测试</button>
             </div>
             <div class="hint">自动识别钉钉/企微机器人，URL 中包含 oapi.dingtalk.com 或 qyapi.weixin.qq.com 即可</div>
+            <label style="margin-top:10px">消息模板（留空使用默认模板，支持 Markdown）</label>
+            <textarea class="form-control" id="f-ddns-webhookTemplate" rows="6" style="font-family:monospace;font-size:13px" placeholder="### {title}
+
+**源站组**: {group_name}
+**旧 IP**: {old_ip}
+**新 IP**: {new_ip}
+**状态**: {status}
+**时间**: {time}">${esc(cfg.webhookTemplate || "")}</textarea>
+            <div class="hint">可用变量: {title} {group_name} {old_ip} {new_ip} {status} {time} {message}</div>
         </div>
     </div>
     <div class="ddns-tab-content" data-tab="logs" style="display:none">
@@ -1039,6 +1048,7 @@ async function submitDdns() {
         interfaceName: $("#f-ddns-interface").value,
         webhookEnabled: $("#f-ddns-webhookEnabled").checked,
         webhookUrl: $("#f-ddns-webhookUrl").value.trim(),
+        webhookTemplate: $("#f-ddns-webhookTemplate").value,
     };
     if (data.enabled && (!data.zoneId || !data.groupId)) {
         return toast("启用时必须选择站点和源站组", "error");
@@ -1052,9 +1062,30 @@ async function submitDdns() {
 
 async function runDdnsOnce() {
     try {
+        // 先收集弹窗中的当前配置并保存，确保执行时用的是最新选择
+        const zoneId = $("#f-ddns-zone")?.value || "";
+        const groupId = $("#f-ddns-group")?.value || "";
+        if (!zoneId || !groupId) {
+            return toast("请先选择站点和源站组", "error");
+        }
+        const data = {
+            enabled: $("#f-ddns-enabled")?.checked ?? false,
+            zoneId,
+            groupId,
+            groupName: ($("#f-ddns-group").selectedOptions[0] || {}).dataset?.name || "",
+            interval: parseInt($("#f-ddns-interval")?.value, 10) || 300,
+            ipType: $("#f-ddns-ipType")?.value || "ipv4",
+            method: $("#f-ddns-method")?.value || "network_interface",
+            interfaceName: $("#f-ddns-interface")?.value || "",
+            webhookEnabled: $("#f-ddns-webhookEnabled")?.checked ?? false,
+            webhookUrl: $("#f-ddns-webhookUrl")?.value.trim() || "",
+            webhookTemplate: $("#f-ddns-webhookTemplate")?.value || "",
+        };
+        // 保存配置（不启动调度器，保持 enabled 原值）
+        await http(API.ddns, { method: "POST", body: JSON.stringify(data) });
+        // 再执行一次更新
         const r = await http(API.ddnsRun, { method: "POST" });
         toast(r.message || "执行完成", r.ok ? "success" : "error");
-        if (r.ok) closeModal();
     } catch (e) { toast(e.message, "error"); }
 }
 

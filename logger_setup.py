@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import logging
 import os
+import time
+from datetime import datetime, timezone, timedelta
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
@@ -22,6 +24,15 @@ _LOG_FILE = _LOG_DIR / "app.log"
 
 _LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 _DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
+
+# 固定使用 UTC+8 时区（北京时间），避免容器内时区为 UTC 导致日志时间偏差
+_CST = timezone(timedelta(hours=8))
+
+
+def _cst_time(*args):
+    """将日志时间戳转换为北京时间 (UTC+8)。"""
+    return datetime.now(_CST).timetuple()
+
 
 _configured = False
 
@@ -39,6 +50,7 @@ def setup_logger(level: int = logging.INFO) -> None:
     root.handlers.clear()
 
     formatter = logging.Formatter(_LOG_FORMAT, _DATE_FORMAT)
+    formatter.converter = _cst_time
 
     # 控制台输出
     sh = logging.StreamHandler()

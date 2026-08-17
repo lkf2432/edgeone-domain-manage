@@ -49,3 +49,8 @@ fnpack-*
 *.fpk
 *.tar.gz
 *.zip
+
+# Dev-only scripts (本地开发辅助脚本，不进仓库)
+build_fpk.py
+_rename_github.py
+_upload_github.py

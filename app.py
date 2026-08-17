@@ -144,8 +144,12 @@ def api_change_password():
     if len(new_password) < 3:
         return jsonify({"error": "新密码至少 3 个字符"}), 400
     if settings.change_admin_password(old_password, new_password):
-        _log.info("[AUTH] 管理员密码已修改")
-        return jsonify({"ok": True, "message": "密码修改成功"})
+        # 同步更新 app.secret_key（settings 已重置 session 密钥）
+        app.secret_key = settings.SECRET_KEY
+        # 清除当前 session，强制重新登录
+        session.clear()
+        _log.info("[AUTH] 管理员密码已修改，需重新登录")
+        return jsonify({"ok": True, "message": "密码修改成功，请重新登录"})
     return jsonify({"error": "旧密码错误"}), 401
 
 
@@ -361,6 +365,12 @@ def api_logs_clear():
 # DDNS 自动更新源站组接口
 # ------------------------------------------------------------------
 import ddns_scheduler
+
+# 应用启动时自动恢复 DDNS 调度器（若配置中 enabled=true）
+try:
+    ddns_scheduler.auto_start()
+except Exception as _e:
+    _log.warning("DDNS 调度器自动启动失败: %s", _e)
 
 @app.route("/api/ddns", methods=["GET"])
 def api_ddns_status():

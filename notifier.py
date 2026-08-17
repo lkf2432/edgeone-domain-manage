@@ -77,12 +77,41 @@ def _send_dingtalk(webhook_url: str, title: str, content: str) -> bool:
             return False
 
 
+def _strip_markdown(text: str) -> str:
+    """将 Markdown 文本转为纯文本（企业微信 text 消息用）。
+
+    企业微信 markdown 消息只能在企业微信客户端查看，微信侧会提示
+    "请前往企业微信查看"。改用 text 消息可让微信直接显示。
+    """
+    import re
+    # 去掉标题井号
+    text = re.sub(r'^#{1,6}\s*', '', text, flags=re.MULTILINE)
+    # 去掉加粗/斜体
+    text = re.sub(r'\*{1,2}(.+?)\*{1,2}', r'\1', text)
+    text = re.sub(r'_{1,2}(.+?)_{1,2}', r'\1', text)
+    # 去掉行内代码
+    text = re.sub(r'`([^`]+)`', r'\1', text)
+    # 去掉链接 [text](url) -> text
+    text = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', text)
+    # 去掉多余的空行
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    return text.strip()
+
+
 def _send_wecom(webhook_url: str, title: str, content: str) -> bool:
-    """发送企业微信机器人消息（markdown 格式）。"""
+    """发送企业微信机器人消息。
+
+    使用 text 格式（而非 markdown），以便消息在微信侧也能直接查看。
+    企业微信 markdown 消息仅在企业微信客户端可见。
+    """
+    # 把 markdown 内容转为纯文本，再加上标题
+    plain = _strip_markdown(content)
+    text = f"【{title}】\n\n{plain}" if plain else title
+
     payload = {
-        "msgtype": "markdown",
-        "markdown": {
-            "content": f"### {title}\n\n{content}",
+        "msgtype": "text",
+        "text": {
+            "content": text,
         },
     }
     body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
