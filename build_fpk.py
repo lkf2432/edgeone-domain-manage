@@ -262,7 +262,8 @@ def build_fpk():
     step(4, 4, "构建 FPK 安装包...")
     fnpack_path = download_fnpack()
 
-    output_file = os.path.join(PROJECT_ROOT, "edgeone-domain-manage.fpk")
+    output_name = f"edgeone-domain-manage-{APP_VERSION}.fpk"
+    output_file = os.path.join(PROJECT_ROOT, output_name)
 
     if fnpack_path and os.path.exists(fnpack_path):
         import subprocess
