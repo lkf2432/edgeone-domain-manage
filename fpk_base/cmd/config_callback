@@ -1,0 +1,13 @@
+#!/bin/bash
+# 配置变更后 - 重启容器使配置生效
+LOG_FILE="${TRIM_PKGVAR}/config.log"
+DOCKER_DIR="${TRIM_APPDEST}/docker"
+
+echo "$(date '+%Y-%m-%d %H:%M:%S') - 配置变更，重启容器..." >> "${LOG_FILE}"
+
+if [ -f "${DOCKER_DIR}/docker-compose.yaml" ]; then
+    cd "${DOCKER_DIR}"
+    docker compose restart 2>>"${LOG_FILE}" || true
+fi
+
+exit 0

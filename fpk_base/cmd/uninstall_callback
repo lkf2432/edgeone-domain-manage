@@ -1,0 +1,12 @@
+#!/bin/bash
+# 卸载后 - 删除 Docker 镜像
+LOG_FILE="${TRIM_PKGVAR}/uninstall.log"
+
+echo "$(date '+%Y-%m-%d %H:%M:%S') - 删除 Docker 镜像..." >> "${LOG_FILE}"
+
+# 删除应用镜像
+docker rmi gyc2432/edgeone-domain-manage:latest 2>>"${LOG_FILE}" || true
+
+echo "$(date '+%Y-%m-%d %H:%M:%S') - 卸载完成" >> "${LOG_FILE}"
+
+exit 0

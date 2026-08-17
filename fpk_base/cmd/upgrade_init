@@ -1,0 +1,21 @@
+#!/bin/bash
+# 升级前初始化 - 停止旧容器
+LOG_FILE="${TRIM_PKGVAR}/upgrade.log"
+DOCKER_DIR="${TRIM_APPDEST}/docker"
+CONTAINER_NAME="edgeone-domain-manage"
+
+mkdir -p "${TRIM_PKGVAR}"
+
+echo "$(date '+%Y-%m-%d %H:%M:%S') - 升级：停止旧容器..." >> "${LOG_FILE}"
+
+if [ -f "${DOCKER_DIR}/docker-compose.yaml" ]; then
+    cd "${DOCKER_DIR}"
+    docker compose down >>"${LOG_FILE}" 2>&1 || true
+fi
+
+# 兜底：直接停止/删除容器
+docker stop "${CONTAINER_NAME}" >>"${LOG_FILE}" 2>&1 || true
+docker rm "${CONTAINER_NAME}" >>"${LOG_FILE}" 2>&1 || true
+
+echo "$(date '+%Y-%m-%d %H:%M:%S') - 旧容器已停止" >> "${LOG_FILE}"
+exit 0

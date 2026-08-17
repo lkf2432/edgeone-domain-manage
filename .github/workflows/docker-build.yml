@@ -1,16 +1,17 @@
-# 构建并推送 Docker 镜像到 Docker Hub
+# 构建并推送 Docker 镜像到 Docker Hub + 打包 FPK 并发布到 GitHub Release
 #
 # 需要在 GitHub 仓库 Settings → Secrets and variables → Actions 配置以下 Secrets：
 #   DOCKERHUB_USERNAME  - Docker Hub 用户名（如 gyc2432）
 #   DOCKERHUB_TOKEN     - Docker Hub Access Token（Profile → Account Settings → Security → New Token）
 #
 # 触发条件：
-#   - 推送到 main 分支（自动推 :latest）
+#   - 推送到 main 分支（自动推 :latest + 打包 FPK + 创建 Release）
 #   - Actions 页面手动触发（workflow_dispatch）
 #
 # 镜像地址：docker.io/gyc2432/edgeone-domain-manage:latest
+# Release  ：每次 push 自动更新 continuous 标签的 rolling Release，FPK 作为 asset 上传
 
-name: Build and Push Docker Image
+name: CI / Release
 
 on:
   push:
@@ -19,15 +20,20 @@ on:
 
 env:
   IMAGE_NAME: gyc2432/edgeone-domain-manage
+  RELEASE_TAG: continuous
+
+permissions:
+  contents: write
 
 jobs:
-  build:
+  # ---------- Job 1: Docker 镜像构建 & 推送（amd64 + arm64 多架构）----------
+  docker:
+    name: Docker Build & Push
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 多架构构建需要 QEMU 模拟 arm64（飞牛 NAS 部分型号为 ARM 架构）
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -40,7 +46,6 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # 所有推送一律只打 :latest
       - name: Extract metadata (labels)
         id: meta
         uses: docker/metadata-action@v5
@@ -64,3 +69,77 @@ jobs:
 
       - name: Output image digest
         run: 'echo "镜像构建完成, digest=${{ steps.build-push.outputs.digest }}"'
+
+  # ---------- Job 2: 打包飞牛 NAS FPK 安装包 ----------
+  fpk:
+    name: Build FPK Package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build FPK
+        run: python build_fpk.py
+
+      - name: Upload FPK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fpk-package
+          path: edgeone-domain-manage.fpk
+          if-no-files-found: error
+
+  # ---------- Job 3: 发布到 GitHub Release（rolling: continuous）----------
+  release:
+    name: Publish GitHub Release
+    needs: [docker, fpk]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download FPK artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: fpk-package
+
+      - name: Generate release body
+        id: body
+        run: |
+          SHA_SHORT=$(git rev-parse --short HEAD)
+          COMMIT_DATE=$(git log -1 --format=%cd --date=short)
+          AUTHOR=$(git log -1 --format=%an)
+          SUBJECT=$(git log -1 --format=%s)
+          {
+            echo "### Continuous Release"
+            echo ""
+            echo "- **Commit**: \`$SHA_SHORT\`"
+            echo "- **Date**: $COMMIT_DATE"
+            echo "- **Author**: $AUTHOR"
+            echo "- **Subject**: $SUBJECT"
+            echo ""
+            echo "---"
+            echo ""
+            echo "### 安装方式"
+            echo "- **Docker**: \`docker pull gyc2432/edgeone-domain-manage:latest\`"
+            echo "- **飞牛 NAS FPK**: 下载下方 \`edgeone-domain-manage.fpk\`，在 fnOS 应用中心 → 手动安装 → 选择文件"
+            echo "- **默认管理员密码**: \`admin\`（登录后请及时修改）"
+          } > release_body.md
+          echo "body_file=release_body.md" >> $GITHUB_OUTPUT
+
+      - name: Update rolling Release (continuous)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: continuous
+          name: Continuous Build
+          body_path: ${{ steps.body.outputs.body_file }}
+          prerelease: true
+          make_latest: false
+          files: edgeone-domain-manage.fpk
+          fail_on_unmatched_files: true

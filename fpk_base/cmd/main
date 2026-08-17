@@ -1,0 +1,41 @@
+#!/bin/bash
+# EdgeOne 域名管理 - 生命周期管理脚本
+# Docker 应用：完全手动控制（install_callback/compose up）
+
+CONTAINER_NAME="edgeone-domain-manage"
+
+case $1 in
+start)
+    # 由 install_callback/upgrade_callback 通过 docker compose 启动
+    # 此处提供兜底：若未启动则尝试启动
+    DOCKER_DIR="${TRIM_APPDEST}/docker"
+    if [ -f "${DOCKER_DIR}/docker-compose.yaml" ]; then
+        cd "${DOCKER_DIR}"
+        docker compose up -d >/dev/null 2>&1 || true
+    fi
+    exit 0
+    ;;
+stop)
+    # 由 uninstall_callback/upgrade_callback 通过 docker compose down 停止
+    # 此处兜底停止
+    docker stop "${CONTAINER_NAME}" >/dev/null 2>&1 || true
+    docker rm "${CONTAINER_NAME}" >/dev/null 2>&1 || true
+    exit 0
+    ;;
+status)
+    # 检查容器运行状态：运行中返回 0，未运行返回 3
+    if docker inspect "${CONTAINER_NAME}" >/dev/null 2>&1; then
+        running=$(docker inspect --format='{{.State.Running}}' "${CONTAINER_NAME}" 2>/dev/null)
+        if [ "$running" = "true" ]; then
+            exit 0
+        else
+            exit 3
+        fi
+    else
+        exit 3
+    fi
+    ;;
+*)
+    exit 1
+    ;;
+esac

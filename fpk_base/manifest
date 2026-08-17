@@ -1,0 +1,22 @@
+appname               = edgeone-domain-manage
+version               = 1.4.0
+display_name          = EdgeOne 域名管理
+desc                  = 腾讯云 EdgeOne 加速域名管理工具，支持域名列表、编辑、启停、删除、HTTPS 配置、DDNS 自动更新源站组、规则引擎管理（启停/修改/删除/查看）等功能。默认管理员密码: admin。忘记密码可重装应用自动重置，或 SSH 执行 /var/apps/edgeone-domain-manage/cmd/reset_password 重置。
+source                = thirdparty
+
+platform              = x86
+os_min_ver            = 1.1.8
+
+maintainer            = EdgeOne Manager
+maintainer_url        = https://github.com/lkf2432/edgeone-domain-manage
+distributor           = EdgeOne Manager
+distributor_url       = https://github.com/lkf2432/edgeone-domain-manage
+
+service_port          = 8196
+
+desktop_appname       = edgeone-domain-manage.Application
+desktop_applaunchname = edgeone-domain-manage.Application
+desktop_uidir         = ui
+
+checksum              =
+changelog             = 1. 新增规则引擎管理功能（列出/查看 JSON/添加/修改/删除/启停规则）；2. 统一使用新版 L7AccRules API；3. 规则引擎弹窗放大，支持自定义规则编辑器；4. 关闭规则引擎弹窗后强制刷新域名管理表格；5. 优化弹窗按钮布局和交互体验

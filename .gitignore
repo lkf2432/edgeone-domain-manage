@@ -43,6 +43,7 @@ ddns_config.json
 # Docker
 edgeone-manager.fpk
 fpk_build/
+!fpk_base/
 fnpack-*
 
 # Packaging
@@ -51,6 +52,6 @@ fnpack-*
 *.zip
 
 # Dev-only scripts (本地开发辅助脚本，不进仓库)
-build_fpk.py
+# build_fpk.py 为 CI 构建必需脚本，保留在仓库中
 _rename_github.py
 _upload_github.py
