@@ -5,7 +5,7 @@
       "RuleName": "请修改为规则名称（如 dp、cache-rule 等）",
       "Branches": [
         {
-          "Condition": "${http.request.host} in ['修改为需要加速的域名']",
+          "Condition": "",
           "Actions": [
             {
               "Name": "WebSocket",

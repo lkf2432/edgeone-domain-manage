@@ -424,6 +424,38 @@ def api_rule_template():
 
 
 # ------------------------------------------------------------------
+# 规则引擎相关资源（供动作参数下拉自动加载）
+# ------------------------------------------------------------------
+@app.route("/api/content-identifiers")
+def api_list_content_identifiers():
+    """列出内容标识符（账户级）。"""
+    try:
+        return jsonify(get_client().list_content_identifiers())
+    except EdgeOneError as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@app.route("/api/zones/<zone_id>/custom-error-pages")
+def api_list_custom_error_pages(zone_id):
+    """列出站点自定义错误页面。"""
+    try:
+        return jsonify(get_client().list_custom_error_pages(zone_id))
+    except EdgeOneError as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@app.route("/api/zones/<zone_id>/shield-spaces")
+def api_list_shield_spaces(zone_id):
+    """列出站点源站卸载空间（内测/白名单，账号未开通时返回空）。"""
+    try:
+        return jsonify(get_client().list_shield_spaces(zone_id))
+    except EdgeOneError as e:
+        # 未开通/接口不存在时降级为空列表，前端回退手动输入
+        _log.warning("[RULE] 获取源站卸载空间失败: %s", e)
+        return jsonify({"items": [], "total": 0})
+
+
+# ------------------------------------------------------------------
 # 日志查询接口
 # ------------------------------------------------------------------
 @app.route("/api/logs", methods=["GET"])

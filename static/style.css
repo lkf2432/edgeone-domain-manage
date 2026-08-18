@@ -474,6 +474,25 @@ body {
 }
 .cond-row .form-control { padding: 7px 10px; font-size: 13px; }
 .cond-rows { margin-bottom: 8px; }
+/* 请求 Host 多选（chips + 下拉合并组件） */
+.host-multi { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.host-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.host-empty { color: var(--muted); font-size: 12px; }
+.host-chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: #e8f0fe; color: #1a56c4;
+    border-radius: 999px; padding: 2px 4px 2px 10px;
+    font-size: 12px; line-height: 1.6; max-width: 100%;
+}
+.host-chip .chip-x {
+    border: none; background: transparent; color: #1a56c4;
+    cursor: pointer; font-size: 14px; line-height: 1; padding: 0 4px; border-radius: 999px;
+}
+.host-chip .chip-x:hover { background: rgba(26, 86, 196, 0.15); }
+.host-add { padding: 5px 8px !important; font-size: 12px !important; color: var(--muted); }
+.arg-row { display: flex; gap: 6px; min-width: 0; }
+.arg-row .form-control { min-width: 0; }
+.cond-no-value { padding: 7px 0; font-size: 12px; }
 .cond-editor .hint { color: var(--muted); font-size: 12px; margin: 6px 0 0; }
 .cond-advanced textarea { width: 100%; }
 
@@ -506,6 +525,10 @@ body {
 /* 开关/多选/字段 */
 .switch-label { font-size: 13px; color: var(--muted); }
 .cb-group { display: flex; gap: 16px; flex-wrap: wrap; }
+/* 连续开关横向排列 */
+.switch-group { display: flex; flex-wrap: wrap; gap: 6px 24px; margin-bottom: 12px; }
+.switch-item { display: flex; align-items: center; gap: 8px; }
+.switch-item label { margin: 0; font-size: 13px; font-weight: 600; color: var(--text); }
 .cb { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; cursor: pointer; }
 .cb input { margin: 0; }
 
@@ -520,6 +543,36 @@ body {
 .sc-row { grid-template-columns: 1fr 1fr auto; }
 .hdr-row .form-control, .sc-row .form-control { padding: 6px 10px; font-size: 13px; }
 .hdr-rows, .sc-rows { margin-bottom: 6px; }
+
+/* 嵌套对象字段 */
+.nested-box {
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.02);
+    padding: 10px 12px;
+    margin-top: 2px;
+}
+.nested-field { margin-bottom: 10px; }
+.nested-field:last-child { margin-bottom: 0; }
+.nested-field label { font-size: 12px; }
+
+/* 对象列表字段（kvList） */
+.kv-rows { margin-bottom: 6px; }
+.kv-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: flex-end;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    background: rgba(0, 0, 0, 0.015);
+}
+.kv-cell { flex: 1 1 160px; min-width: 140px; }
+.kv-cell label { font-size: 12px; display: block; }
+.kv-row .btn { flex: 0 0 auto; align-self: center; }
+.kv-cell .switch-row, .kv-cell .cb-group { margin-top: 4px; }
 
 /* JSON 预览 */
 .rule-json-preview { margin-top: 14px; }

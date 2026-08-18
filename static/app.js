@@ -25,6 +25,9 @@ const API = {
     ruleStatus: (zid, rid) => `/api/zones/${zid}/rules/${encodeURIComponent(rid)}/status`,
     deleteRule: (zid, rid) => `/api/zones/${zid}/rules/${encodeURIComponent(rid)}`,
     ruleTemplate: () => `/api/rule-template`,
+    contentIdentifiers: () => "/api/content-identifiers",
+    customErrorPages: (zid) => `/api/zones/${zid}/custom-error-pages`,
+    shieldSpaces: (zid) => `/api/zones/${zid}/shield-spaces`,
 };
 
 const state = { zones: [], domains: [], zoneId: "" };
@@ -956,37 +959,34 @@ function deleteRule(ruleId) {
 // 匹配条件支持的变量
 const CONDITION_VARS = [
     { v: "http.request.host", label: "请求 Host（域名）" },
-    { v: "http.request.uri", label: "完整 URI（含参数）" },
-    { v: "http.request.uri.path", label: "URI 路径（不含参数）" },
-    { v: "http.request.uri.path.extension", label: "文件扩展名" },
+    { v: "http.request.full_uri", label: "完整 URL（含协议+域名+参数）" },
+    { v: "http.request.uri.path", label: "URI 路径" },
+    { v: "http.request.uri.args", label: "查询参数（参数名+参数值）", arg: true },
+    { v: "http.request.file_extension", label: "文件后缀（扩展名）" },
+    { v: "http.request.filename", label: "文件名称" },
     { v: "http.request.method", label: "请求方法" },
     { v: "http.request.scheme", label: "协议（http/https）" },
-    { v: "http.request.user_agent", label: "User-Agent" },
-    { v: "http.request.referer", label: "Referer" },
-    { v: "http.request.client_ip", label: "客户端 IP" },
-    { v: "ip.geo.country", label: "国家代码" },
-    { v: "ip.geo.province", label: "省份" },
-    { v: "ip.geo.isp", label: "运营商" },
+    { v: "http.request.ip", label: "客户端 IP" },
+    { v: "http.request.ip.country", label: "客户端国家/地区" },
+    { v: "http.request.ip.region_name", label: "客户端省份/地区" },
+    { v: "http.request.headers['User-Agent']", label: "User-Agent" },
+    { v: "http.request.headers['Referer']", label: "Referer" },
 ];
 
-// 匹配条件支持的操作符
+// 匹配条件支持的操作符（EdgeOne 表达式语法：in / matches / exists / like / contain / > / <，否定用 not 前缀）
 const CONDITION_OPS = [
-    { v: "in", label: "属于（多值）" },
-    { v: "notIn", label: "不属于（多值）" },
-    { v: "equal", label: "等于" },
-    { v: "notEqual", label: "不等于" },
-    { v: "match", label: "通配匹配 * ?" },
-    { v: "notMatch", label: "通配不匹配" },
-    { v: "startsWith", label: "前缀匹配" },
-    { v: "endsWith", label: "后缀匹配" },
-    { v: "contains", label: "包含" },
-    { v: "notContains", label: "不包含" },
-    { v: "regex", label: "正则匹配" },
-    { v: "notRegex", label: "正则不匹配" },
+    { v: "in", label: "等于 / 属于（多值）" },
+    { v: "notIn", label: "不等于 / 不属于" },
+    { v: "contain", label: "包含" },
+    { v: "notContain", label: "不包含" },
+    { v: "like", label: "通配匹配（* ?）" },
+    { v: "notLike", label: "通配不匹配" },
+    { v: "matches", label: "正则匹配" },
+    { v: "notMatches", label: "正则不匹配" },
+    { v: "exists", label: "存在" },
+    { v: "notExists", label: "不存在" },
     { v: "gt", label: "大于（数值）" },
-    { v: "gte", label: "大于等于" },
-    { v: "lt", label: "小于" },
-    { v: "lte", label: "小于等于" },
+    { v: "lt", label: "小于（数值）" },
 ];
 
 // 动作类型元数据：label=中文名 cat=分类 paramsKey=Parameters字段名
@@ -994,7 +994,7 @@ const CONDITION_OPS = [
 const ACTION_META = {
     WebSocket: { label: "WebSocket", cat: "协议", paramsKey: "WebSocketParameters", fields: [
         { key: "Switch", label: "开启", type: "switch" },
-        { key: "Timeout", label: "超时时间（秒，≤120）", type: "number", min: 1, max: 120, when: { Switch: "on" } },
+        { key: "Timeout", label: "超时时间（秒，≤300）", type: "number", min: 1, max: 300, when: { Switch: "on" } },
     ]},
     Cache: { label: "节点缓存 TTL", cat: "缓存", paramsKey: "CacheParameters", fields: [
         { key: "__cacheMode", label: "缓存模式", type: "cacheMode" },
@@ -1007,9 +1007,6 @@ const ACTION_META = {
         { key: "__statusCodeCache", label: "状态码缓存规则", type: "statusCodeCache", unit: "time" },
     ]},
     OfflineCache: { label: "离线缓存", cat: "缓存", paramsKey: "OfflineCacheParameters", fields: [
-        { key: "Switch", label: "开启", type: "switch" },
-    ]},
-    QUIC: { label: "QUIC（HTTP/3）", cat: "协议", paramsKey: "QUICParameters", fields: [
         { key: "Switch", label: "开启", type: "switch" },
     ]},
     HTTP2: { label: "HTTP/2 接入", cat: "协议", paramsKey: "HTTP2Parameters", fields: [
@@ -1056,41 +1053,137 @@ const ACTION_META = {
         { key: "Switch", label: "开启", type: "switch" },
         { key: "MaxSize", label: "最大值（字节，1MB-800MB）", type: "number", min: 1048576, max: 838860800, when: { Switch: "on" } },
     ]},
-    ResponseSpeedLimit: { label: "单连接下载限速", cat: "其他", paramsKey: "ResponseSpeedLimitParameters", fields: [
-        { key: "Mode", label: "限速模式", type: "select", options: [{ v: "LimitUponDownload", t: "全过程限速" }, { v: "LimitAfterSpecificBytesDownloaded", t: "特定字节后限速" }, { v: "LimitAfterSpecificSecondsDownloaded", t: "特定时间后限速" }] },
-        { key: "MaxSpeed", label: "限速值（如 1024KB/s）", type: "text" },
-        { key: "StartAt", label: "开始值（KB 或 s，按模式）", type: "text", when: { Mode: "!LimitUponDownload" } },
-    ]},
     HTTPResponse: { label: "HTTP 应答", cat: "其他", paramsKey: "HTTPResponseParameters", fields: [
         { key: "StatusCode", label: "状态码", type: "select", options: [{v:200,t:"200"},{v:204,t:"204"},{v:400,t:"400"},{v:403,t:"403"},{v:404,t:"404"},{v:500,t:"500"},{v:502,t:"502"},{v:503,t:"503"}] },
-        { key: "ResponsePage", label: "响应页面 ID", type: "text" },
+        { key: "ResponsePage", label: "响应页面", type: "text", source: "customErrorPages", placeholder: "响应页面 ID" },
     ]},
     RangeOriginPull: { label: "分片回源", cat: "源站", paramsKey: "RangeOriginPullParameters", fields: [
         { key: "Switch", label: "开启", type: "switch" },
     ]},
-    SmartRouting: { label: "智能加速", cat: "源站", paramsKey: "SmartRoutingParameters", fields: [
+    CacheKey: { label: "自定义 Cache Key", cat: "缓存", paramsKey: "CacheKeyParameters", fields: [
+        { key: "FullURLCache", label: "查询字符串全部保留", type: "switch" },
+        { key: "QueryString", label: "查询字符串保留/忽略参数", type: "nested", fields: [
+            { key: "Switch", label: "开启", type: "switch" },
+            { key: "Action", label: "动作", type: "select", options: [{ v: "includeCustom", t: "保留部分参数" }, { v: "excludeCustom", t: "忽略部分参数" }], when: { Switch: "on" } },
+            { key: "Values", label: "参数名列表（逗号分隔）", type: "textList", when: { Switch: "on" } },
+        ]},
+        { key: "IgnoreCase", label: "忽略大小写", type: "switch" },
+        { key: "Header", label: "HTTP 请求头", type: "nested", fields: [
+            { key: "Switch", label: "开启", type: "switch" },
+            { key: "Values", label: "请求头名列表（逗号分隔）", type: "textList", when: { Switch: "on" } },
+        ]},
+        { key: "Scheme", label: "请求协议", type: "switch" },
+        { key: "Cookie", label: "Cookie", type: "nested", fields: [
+            { key: "Switch", label: "开启", type: "switch" },
+            { key: "Action", label: "动作", type: "select", options: [{ v: "full", t: "全部保留" }, { v: "ignore", t: "全部忽略" }, { v: "includeCustom", t: "保留指定参数" }, { v: "excludeCustom", t: "忽略指定参数" }], when: { Switch: "on" } },
+            { key: "Values", label: "Cookie 名列表（逗号分隔）", type: "textList", when: { Switch: "on" } },
+        ]},
+    ]},
+    MaxAge: { label: "浏览器缓存 TTL", cat: "缓存", paramsKey: "MaxAgeParameters", fields: [
+        { key: "FollowOrigin", label: "遵循源站 Cache-Control", type: "switch" },
+        { key: "CacheTime", label: "缓存时间（0 秒 ~ 10 年）", type: "number", min: 0, max: 315360000, unit: "time", when: { FollowOrigin: "off" } },
+    ]},
+    AccessURLRedirect: { label: "访问 URL 重定向", cat: "其他", paramsKey: "AccessURLRedirectParameters", fields: [
+        { key: "StatusCode", label: "状态码", type: "select", options: [{ v: 301, t: "301" }, { v: 302, t: "302" }, { v: 303, t: "303" }, { v: 307, t: "307" }, { v: 308, t: "308" }] },
+        { key: "Protocol", label: "目标请求协议", type: "select", options: [{ v: "http", t: "HTTP" }, { v: "https", t: "HTTPS" }, { v: "follow", t: "跟随请求" }] },
+        { key: "HostName", label: "目标 HostName", type: "nested", fields: [
+            { key: "Action", label: "动作", type: "select", options: [{ v: "follow", t: "跟随请求" }, { v: "custom", t: "自定义" }] },
+            { key: "Value", label: "自定义值", type: "text", when: { Action: "custom" } },
+        ]},
+        { key: "URLPath", label: "目标路径", type: "nested", fields: [
+            { key: "Action", label: "动作", type: "select", options: [{ v: "follow", t: "跟随请求" }, { v: "custom", t: "自定义" }, { v: "regex", t: "正则匹配" }] },
+            { key: "Regex", label: "正则表达式（RE2）", type: "text", when: { Action: "regex" } },
+            { key: "Value", label: "目标 URL", type: "text", when: { Action: "!follow" } },
+        ]},
+        { key: "QueryString", label: "查询参数", type: "nested", fields: [
+            { key: "Action", label: "动作", type: "select", options: [{ v: "full", t: "全部保留" }, { v: "ignore", t: "全部忽略" }] },
+        ]},
+    ]},
+    UpstreamURLRewrite: { label: "回源 URL 重写", cat: "其他", paramsKey: "UpstreamURLRewriteParameters", fields: [
+        { key: "Type", label: "重写类型", type: "select", options: [{ v: "Path", t: "Path" }] },
+        { key: "Action", label: "动作", type: "select", options: [{ v: "replace", t: "替换完整路径" }, { v: "addPrefix", t: "增加路径前缀" }, { v: "rmvPrefix", t: "移除路径前缀" }, { v: "regexReplace", t: "正则替换完整路径" }] },
+        { key: "Value", label: "重写值", type: "text" },
+        { key: "Regex", label: "正则表达式（RE2）", type: "text", when: { Action: "regexReplace" } },
+    ]},
+    Authentication: { label: "Token 鉴权", cat: "其他", paramsKey: "AuthenticationParameters", fields: [
+        { key: "AuthType", label: "鉴权类型", type: "select", options: [{ v: "TypeA", t: "鉴权方式 A" }, { v: "TypeB", t: "鉴权方式 B" }, { v: "TypeC", t: "鉴权方式 C" }, { v: "TypeD", t: "鉴权方式 D" }, { v: "TypeVOD", t: "鉴权方式 V" }] },
+        { key: "SecretKey", label: "主鉴权密钥（6~40 位）", type: "text" },
+        { key: "BackupSecretKey", label: "备鉴权密钥（6~40 位）", type: "text" },
+        { key: "Timeout", label: "有效时长（秒，1~630720000）", type: "number", min: 1, max: 630720000, when: { AuthType: "!TypeVOD" } },
+        { key: "AuthParam", label: "鉴权参数名称", type: "text" },
+        { key: "TimeParam", label: "鉴权时间戳参数名", type: "text", when: { AuthType: "TypeD" } },
+        { key: "TimeFormat", label: "鉴权时间格式", type: "select", options: [{ v: "hex", t: "十六进制 hex" }, { v: "dec", t: "十进制 dec" }], when: { AuthType: "TypeD" } },
+    ]},
+    AdvancedOriginRouting: { label: "高级回源优化", cat: "源站", paramsKey: "AdvancedOriginRoutingParameters", fields: [
+        { key: "Direction", label: "回源优化方向", type: "select", options: [{ v: "MainlandChinaAndGlobalAdaptive", t: "自适应（需开启智能加速）" }] },
+    ]},
+    UpstreamRequest: { label: "回源请求参数", cat: "源站", paramsKey: "UpstreamRequestParameters", fields: [
+        { key: "QueryString", label: "查询字符串", type: "nested", fields: [
+            { key: "Switch", label: "开启", type: "switch" },
+            { key: "Action", label: "模式", type: "select", options: [{ v: "full", t: "全部保留" }, { v: "ignore", t: "全部忽略" }, { v: "includeCustom", t: "保留部分参数" }, { v: "excludeCustom", t: "忽略部分参数" }], when: { Switch: "on" } },
+            { key: "Values", label: "参数名列表（逗号分隔）", type: "textList", when: { Switch: "on" } },
+        ]},
+        { key: "Cookie", label: "Cookie", type: "nested", fields: [
+            { key: "Switch", label: "开启", type: "switch" },
+            { key: "Action", label: "模式", type: "select", options: [{ v: "full", t: "全部保留" }, { v: "ignore", t: "全部忽略" }, { v: "includeCustom", t: "保留部分参数" }, { v: "excludeCustom", t: "忽略部分参数" }], when: { Switch: "on" } },
+            { key: "Values", label: "Cookie 名列表（逗号分隔）", type: "textList", when: { Switch: "on" } },
+        ]},
+    ]},
+    Shield: { label: "源站卸载", cat: "源站", paramsKey: "ShieldParameters", fields: [
+        { key: "ShieldSpaceId", label: "源站卸载空间", type: "text", source: "shieldSpaces", placeholder: "源站卸载空间 ID" },
+    ]},
+    TLSConfig: { label: "SSL/TLS 安全", cat: "协议", paramsKey: "TLSConfigParameters", fields: [
+        { key: "Version", label: "TLS 版本（多选，需连续）", type: "multiselect", options: [{ v: "TLSv1", t: "TLSv1" }, { v: "TLSv1.1", t: "TLSv1.1" }, { v: "TLSv1.2", t: "TLSv1.2" }, { v: "TLSv1.3", t: "TLSv1.3" }] },
+        { key: "CipherSuite", label: "密码套件", type: "select", options: [{ v: "loose-v2023", t: "loose-v2023" }, { v: "general-v2023", t: "general-v2023" }, { v: "strict-v2023", t: "strict-v2023" }] },
+    ]},
+    ModifyOrigin: { label: "修改源站", cat: "源站", paramsKey: "ModifyOriginParameters", fields: [
+        { key: "OriginType", label: "源站类型", type: "select", options: [{ v: "IPDomain", t: "IP / 域名" }, { v: "OriginGroup", t: "源站组" }, { v: "COS", t: "腾讯云 COS" }, { v: "AWSS3", t: "AWS S3" }] },
+        { key: "Origin", label: "源站地址", type: "text", source: "originGroups", sourceWhen: { OriginType: "OriginGroup" }, allowEmpty: "请选择源站组", placeholder: "源站 IP / 域名 / COS 域名 / S3 域名 / 源站组 ID", required: true },
+        { key: "OriginProtocol", label: "回源协议", type: "select", options: [{ v: "http", t: "HTTP" }, { v: "https", t: "HTTPS" }, { v: "follow", t: "协议跟随" }], when: { OriginType: ["IPDomain", "OriginGroup"] } },
+        { key: "HTTPOriginPort", label: "HTTP 回源端口（1~65535）", type: "number", min: 1, max: 65535, when: { OriginType: ["IPDomain", "OriginGroup"], OriginProtocol: "!https" } },
+        { key: "HTTPSOriginPort", label: "HTTPS 回源端口（1~65535）", type: "number", min: 1, max: 65535, when: { OriginType: ["IPDomain", "OriginGroup"], OriginProtocol: "!http" } },
+        { key: "PrivateAccess", label: "私有对象存储鉴权", type: "switch", when: { OriginType: ["COS", "AWSS3"] } },
+        { key: "PrivateParameters", label: "私有鉴权参数（AWSS3）", type: "nested", fields: [
+            { key: "AccessKeyId", label: "Access Key ID", type: "text" },
+            { key: "SecretAccessKey", label: "Secret Access Key", type: "text" },
+            { key: "SignatureVersion", label: "鉴权版本", type: "select", options: [{ v: "v2", t: "v2" }, { v: "v4", t: "v4" }] },
+            { key: "Region", label: "存储桶地域", type: "text" },
+        ], when: { PrivateAccess: "on", OriginType: "AWSS3" } },
+    ]},
+    SiteFailover: { label: "源站故障转移", cat: "源站", paramsKey: "SiteFailoverParameters", fields: null },
+    HTTPUpstreamTimeout: { label: "七层回源超时", cat: "协议", paramsKey: "HTTPUpstreamTimeoutParameters", fields: [
+        { key: "ResponseTimeout", label: "HTTP 应答超时（秒，5~600）", type: "number", min: 5, max: 600 },
+    ]},
+    ErrorPage: { label: "自定义错误页面", cat: "其他", paramsKey: "ErrorPageParameters", fields: [
+        { key: "ErrorPageParams", label: "错误页面规则", type: "kvList", fields: [
+            { key: "StatusCode", label: "状态码", type: "select", options: [{ v: 400, t: "400" }, { v: 403, t: "403" }, { v: 404, t: "404" }, { v: 405, t: "405" }, { v: 414, t: "414" }, { v: 416, t: "416" }, { v: 451, t: "451" }, { v: 500, t: "500" }, { v: 501, t: "501" }, { v: 502, t: "502" }, { v: 503, t: "503" }, { v: 504, t: "504" }] },
+            { key: "RedirectURL", label: "重定向 URL（完整路径）", type: "text" },
+        ]},
+    ]},
+    ClientIPCountry: { label: "客户端 IP 地域", cat: "HTTP 头", paramsKey: "ClientIPCountryParameters", fields: [
+        { key: "Switch", label: "开启", type: "switch" },
+        { key: "HeaderName", label: "头部名称（留空用默认 EO-Client-IPCountry）", type: "text", when: { Switch: "on" } },
+    ]},
+    UpstreamFollowRedirect: { label: "回源跟随重定向", cat: "源站", paramsKey: "UpstreamFollowRedirectParameters", fields: [
+        { key: "Switch", label: "开启", type: "switch" },
+        { key: "MaxTimes", label: "最大重定向次数（1~5）", type: "number", min: 1, max: 5, when: { Switch: "on" } },
+    ]},
+    Vary: { label: "Vary 特性", cat: "其他", paramsKey: "VaryParameters", fields: [
         { key: "Switch", label: "开启", type: "switch" },
     ]},
-    // 以下动作用 JSON 兜底编辑（字段较复杂或为白名单功能）
-    CacheKey: { label: "自定义 Cache Key", cat: "缓存", paramsKey: "CacheKeyParameters", fields: null },
-    MaxAge: { label: "浏览器缓存 TTL", cat: "缓存", paramsKey: "MaxAgeParameters", fields: null },
-    AccessURLRedirect: { label: "访问 URL 重定向", cat: "其他", paramsKey: "AccessURLRedirectParameters", fields: null },
-    UpstreamURLRewrite: { label: "回源 URL 重写", cat: "其他", paramsKey: "UpstreamURLRewriteParameters", fields: null },
-    Authentication: { label: "Token 鉴权", cat: "其他", paramsKey: "AuthenticationParameters", fields: null },
-    AdvancedOriginRouting: { label: "高级回源优化", cat: "源站", paramsKey: "AdvancedOriginRoutingParameters", fields: null },
-    UpstreamRequest: { label: "回源请求参数", cat: "源站", paramsKey: "UpstreamRequestParameters", fields: null },
-    Shield: { label: "源站卸载", cat: "源站", paramsKey: "ShieldParameters", fields: null },
-    TLSConfig: { label: "SSL/TLS 安全", cat: "协议", paramsKey: "TLSConfigParameters", fields: null },
-    ModifyOrigin: { label: "修改源站", cat: "源站", paramsKey: "ModifyOriginParameters", fields: null },
-    SiteFailover: { label: "源站故障转移", cat: "源站", paramsKey: "SiteFailoverParameters", fields: null },
-    HTTPUpstreamTimeout: { label: "七层回源超时", cat: "协议", paramsKey: "HTTPUpstreamTimeoutParameters", fields: null },
-    ErrorPage: { label: "自定义错误页面", cat: "其他", paramsKey: "ErrorPageParameters", fields: null },
-    ClientIPCountry: { label: "客户端 IP 地域", cat: "HTTP 头", paramsKey: "ClientIPCountryParameters", fields: null },
-    UpstreamFollowRedirect: { label: "回源跟随重定向", cat: "源站", paramsKey: "UpstreamFollowRedirectParameters", fields: null },
-    Vary: { label: "Vary 特性", cat: "其他", paramsKey: "VaryParameters", fields: null },
-    SetContentIdentifier: { label: "设置内容标识符", cat: "其他", paramsKey: "SetContentIdentifierParameters", fields: null },
-    ContentCompression: { label: "内容压缩", cat: "压缩", paramsKey: "ContentCompressionParameters", fields: null },
-    OriginAuthentication: { label: "回源鉴权", cat: "源站", paramsKey: "OriginAuthenticationParameters", fields: null },
+    SetContentIdentifier: { label: "设置内容标识符", cat: "其他", paramsKey: "SetContentIdentifierParameters", fields: [
+        { key: "ContentIdentifier", label: "内容标识符", type: "text", source: "contentIdentifiers", placeholder: "内容标识 ID" },
+    ]},
+    ContentCompression: { label: "内容压缩", cat: "压缩", paramsKey: "ContentCompressionParameters", fields: [
+        { key: "Switch", label: "开启", type: "switch" },
+    ]},
+    OriginAuthentication: { label: "回源鉴权", cat: "源站", paramsKey: "OriginAuthenticationParameters", fields: [
+        { key: "RequestProperties", label: "回源鉴权请求属性", type: "kvList", fields: [
+            { key: "Type", label: "参数类型", type: "select", options: [{ v: "QueryString", t: "查询字符串" }, { v: "Header", t: "请求头" }] },
+            { key: "Name", label: "参数名称", type: "text" },
+            { key: "Value", label: "参数值", type: "text" },
+        ]},
+    ]},
     CustomAction: { label: "定制配置", cat: "其他", paramsKey: "CustomActionParameters", fields: null },
 };
 
@@ -1099,6 +1192,77 @@ const ACTION_CATS = ["缓存", "协议", "压缩", "HTTP 头", "源站", "其他
 
 // 编辑器内部状态
 let _ruleEditor = null;
+// 规则编辑器数据源（当前站点资源，用于条件/动作字段自动填充）
+let _ruleOriginGroups = null;         // 源站组
+let _ruleContentIdentifiers = null;   // 内容标识符（账户级）
+let _ruleCustomErrorPages = null;     // 自定义错误页面（站点级）
+let _ruleShieldSpaces = null;         // 源站卸载空间（站点级）
+
+// 确保规则编辑器所需的数据源已就绪（懒加载并缓存；域名复用主页面 state.domains）
+async function _ensureRuleDataSources() {
+    const tasks = [];
+    if (_ruleOriginGroups === null) {
+        tasks.push(http(API.originGroups(state.zoneId)).then((r) => { _ruleOriginGroups = r.groups || []; }).catch(() => { _ruleOriginGroups = []; }));
+    }
+    if (_ruleContentIdentifiers === null) {
+        tasks.push(http(API.contentIdentifiers()).then((r) => { _ruleContentIdentifiers = r.items || []; }).catch(() => { _ruleContentIdentifiers = []; }));
+    }
+    if (_ruleCustomErrorPages === null) {
+        tasks.push(http(API.customErrorPages(state.zoneId)).then((r) => { _ruleCustomErrorPages = r.items || []; }).catch(() => { _ruleCustomErrorPages = []; }));
+    }
+    if (_ruleShieldSpaces === null) {
+        tasks.push(http(API.shieldSpaces(state.zoneId)).then((r) => { _ruleShieldSpaces = r.items || []; }).catch(() => { _ruleShieldSpaces = []; }));
+    }
+    if (tasks.length) await Promise.all(tasks);
+    return {
+        domains: state.domains || [],
+        originGroups: _ruleOriginGroups || [],
+        contentIdentifiers: _ruleContentIdentifiers || [],
+        customErrorPages: _ruleCustomErrorPages || [],
+        shieldSpaces: _ruleShieldSpaces || [],
+    };
+}
+
+// 根据字段的 source 声明生成下拉选项；无数据返回 null（回退手动输入）
+function _sourceOptions(f, val) {
+    if (f.source === "originGroups") {
+        const groups = _ruleOriginGroups || [];
+        if (!groups.length) return null;
+        return groups.map((g) => `<option value="${esc(g.GroupId)}" ${String(val) === String(g.GroupId) ? "selected" : ""}>${esc(g.Name)} (${esc(g.GroupId)})</option>`).join("");
+    }
+    if (f.source === "domains") {
+        const domains = state.domains || [];
+        if (!domains.length) return null;
+        return domains.map((d) => `<option value="${esc(d.DomainName)}" ${String(val) === String(d.DomainName) ? "selected" : ""}>${esc(d.DomainName)}</option>`).join("");
+    }
+    if (f.source === "contentIdentifiers") {
+        const items = _ruleContentIdentifiers || [];
+        if (!items.length) return null;
+        return items.map((c) => {
+            const label = c.Description ? `${c.ContentId}（${c.Description}）` : c.ContentId;
+            return `<option value="${esc(c.ContentId)}" ${String(val) === String(c.ContentId) ? "selected" : ""}>${esc(label)}</option>`;
+        }).join("");
+    }
+    if (f.source === "customErrorPages") {
+        const items = _ruleCustomErrorPages || [];
+        if (!items.length) return null;
+        return items.map((p) => {
+            const label = p.Name ? `${p.Name}（${p.PageId}）` : p.PageId;
+            return `<option value="${esc(p.PageId)}" ${String(val) === String(p.PageId) ? "selected" : ""}>${esc(label)}</option>`;
+        }).join("");
+    }
+    if (f.source === "shieldSpaces") {
+        const items = (_ruleShieldSpaces || []).filter((s) => s.ShieldSpaceId || s.Id);
+        if (!items.length) return null;
+        return items.map((s) => {
+            const id = s.ShieldSpaceId || s.Id;
+            const name = s.Name || s.ShieldSpaceName || "";
+            const label = name ? `${name}（${id}）` : id;
+            return `<option value="${esc(id)}" ${String(val) === String(id) ? "selected" : ""}>${esc(label)}</option>`;
+        }).join("");
+    }
+    return null;
+}
 
 // 生成动作下拉选项（按分类分组）
 function _actionSelectOptions(selected) {
@@ -1228,17 +1392,45 @@ function _parseCondition(expr) {
     // 按顶层 and 拆分（不处理括号内嵌套，复杂表达式保留为高级模式）
     const parts = expr.split(/\s+and\s+/i);
     return parts.map((p) => {
-        p = p.trim().replace(/^\(|\)$/g, "").trim();
-        const m = p.match(/^\$\{([^}]+)\}\s+(\w+)\s+(.+)$/);
-        if (!m) return { raw: p };
-        const [, variable, op, valStr] = m;
-        let value = valStr.trim();
-        if (/^\[.*\]$/.test(value)) {
-            value = value.slice(1, -1).split(",").map((s) => s.trim().replace(/^'|'$/g, "")).join(",");
+        p = p.trim();
+        // 剥离首尾成对括号
+        while (p.startsWith("(") && p.endsWith(")")) p = p.slice(1, -1).trim();
+        // not 前缀
+        let neg = false;
+        if (/^not\s+/i.test(p)) { neg = true; p = p.replace(/^not\s+/i, "").trim(); }
+        // 提取变量：普通 ${x} 或查询参数 ${http.request.uri.args['name']}
+        let m, variable = null, argName = null;
+        m = p.match(/^\$\{http\.request\.uri\.args\['([^']*)'\]\}(.*)$/);
+        if (m) {
+            variable = "http.request.uri.args";
+            argName = m[1];
+            p = m[2].trim();
         } else {
-            value = value.replace(/^'|'$/g, "");
+            m = p.match(/^\$\{([^}]+)\}(.*)$/);
+            if (!m) return { raw: (neg ? "not " : "") + p };
+            variable = m[1];
+            p = m[2].trim();
         }
-        return { variable, op, value };
+        // exists / not exists
+        if (/^exists$/.test(p)) return { variable, argName, op: neg ? "notExists" : "exists", value: "" };
+        // matches（双引号正则）
+        m = p.match(/^matches\s+"([^"]*)"$/);
+        if (m) return { variable, argName, op: neg ? "notMatches" : "matches", value: m[1] };
+        // 大于 / 小于
+        m = p.match(/^>\s*(.+)$/);
+        if (m) return { variable, argName, op: "gt", value: m[1].trim() };
+        m = p.match(/^<\s*(.+)$/);
+        if (m) return { variable, argName, op: "lt", value: m[1].trim() };
+        // in / contain / like（单引号列表）
+        m = p.match(/^(in|contain|like)\s+\[(.*)\]$/);
+        if (m) {
+            const negMap = { in: "notIn", contain: "notContain", like: "notLike" };
+            const base = m[1];
+            const val = m[2].split(",").map((s) => s.trim().replace(/^'|'$/g, "")).join(",");
+            return { variable, argName, op: neg ? negMap[base] : base, value: val };
+        }
+        // 兜底：无法解析则保留 raw（含 not 前缀）
+        return { raw: (neg ? "not " : "") + p };
     });
 }
 
@@ -1248,11 +1440,17 @@ function _parseBranchActions(rawActions) {
         const params = meta ? (a[meta.paramsKey] || {}) : {};
         const ed = { Name: a.Name, params: JSON.parse(JSON.stringify(params)) };
         if (a.Name === "Cache") {
-            if (params.FollowOrigin) ed.params.__cacheMode = "FollowOrigin";
-            else if (params.NoCache) ed.params.__cacheMode = "NoCache";
-            else if (params.CustomTime) {
+            if (params.FollowOrigin) {
+                ed.params.__cacheMode = "FollowOrigin";
+                ed.params.FollowOriginDefaultCache = params.FollowOrigin.DefaultCache || "off";
+                ed.params.FollowOriginDefaultCacheStrategy = params.FollowOrigin.DefaultCacheStrategy || "off";
+                ed.params.FollowOriginDefaultCacheTime = params.FollowOrigin.DefaultCacheTime || 0;
+            } else if (params.NoCache) {
+                ed.params.__cacheMode = "NoCache";
+            } else if (params.CustomTime) {
                 ed.params.__cacheMode = "CustomTime";
                 ed.params.CustomTimeCacheTime = params.CustomTime.CacheTime;
+                ed.params.CustomTimeIgnoreCacheControl = params.CustomTime.IgnoreCacheControl || "off";
             }
         }
         if (a.Name === "ModifyRequestHeader" || a.Name === "ModifyResponseHeader") {
@@ -1278,16 +1476,56 @@ function _renderCondEditorFor(key) {
     }
     const prefix = _scopePrefix(key);
     const conds = scope.conditions || [];
+    const allDomains = (state.domains || []).map((d) => d.DomainName);
     const rows = conds.map((c, i) => {
         const isRaw = c.raw !== undefined;
+        const isHost = !isRaw && c.variable === "http.request.host";
+        const isArg = !isRaw && c.variable === "http.request.uri.args";
+        const isNoValue = !isRaw && (c.op === "exists" || c.op === "notExists");
         const varOpts = CONDITION_VARS.map((v) => `<option value="${v.v}" ${!isRaw && c.variable === v.v ? "selected" : ""}>${v.label}</option>`).join("");
         const opOpts = CONDITION_OPS.map((o) => `<option value="${o.v}" ${!isRaw && c.op === o.v ? "selected" : ""}>${o.label}</option>`).join("");
         const valDisplay = isRaw ? "" : esc(c.value || "");
         const rawDisplay = isRaw ? esc(c.raw) : "";
+        // 请求 Host 条件：合并为「chips + 下拉」多选组件，已选域名显示为标签，下拉只列未选域名
+        let valCell;
+        if (isHost) {
+            const selected = (c.value || "").split(",").map((s) => s.trim()).filter(Boolean);
+            const remaining = allDomains.filter((d) => !selected.includes(d));
+            const chips = selected.map((d, idx) => `<span class="host-chip">${esc(d)}<button class="chip-x" data-idx="${idx}" type="button" title="移除">×</button></span>`).join("");
+            const menuOpts = remaining.map((d) => `<option value="${esc(d)}">${esc(d)}</option>`).join("");
+            valCell = `<div class="host-multi">
+                <div class="host-chips">${chips || `<span class="host-empty">未选择域名</span>`}</div>
+                <select class="form-control host-add" data-i="${i}">
+                    <option value="">+ 选择域名</option>
+                    ${menuOpts}
+                </select>
+            </div>`;
+        } else if (isArg) {
+            // 查询参数：参数名 + 参数值两个输入
+            const argName = esc(c.argName || "");
+            if (isNoValue) {
+                valCell = `<div class="arg-row"><input class="form-control cond-arg-name" value="${argName}" placeholder="参数名（如 status）" /></div>`;
+            } else {
+                const valPh = (c.op === "matches" || c.op === "notMatches") ? "参数值（正则）"
+                    : (c.op === "gt" || c.op === "lt") ? "参数值（数值）"
+                    : "参数值";
+                valCell = `<div class="arg-row">
+                    <input class="form-control cond-arg-name" value="${argName}" placeholder="参数名（如 status）" />
+                    <input class="form-control cond-val" value="${valDisplay}" placeholder="${valPh}" />
+                </div>`;
+            }
+        } else if (isNoValue) {
+            valCell = `<div class="cond-no-value hint">无需填写值</div>`;
+        } else {
+            const valPh = (c.op === "matches" || c.op === "notMatches") ? "正则表达式（如 ^/admin/）"
+                : (c.op === "gt" || c.op === "lt") ? "数值"
+                : "值（多值用英文逗号分隔）";
+            valCell = `<input class="form-control cond-val" value="${valDisplay}" placeholder="${valPh}" />`;
+        }
         return `<div class="cond-row" data-i="${i}">
             <select class="form-control cond-var">${varOpts}</select>
             <select class="form-control cond-op">${opOpts}</select>
-            <input class="form-control cond-val" value="${valDisplay}" placeholder="值（多值用英文逗号分隔）" />
+            ${valCell}
             <input class="form-control cond-raw" value="${rawDisplay}" placeholder="原始表达式" style="display:none" />
             <button class="btn sm danger cond-del" type="button">删除</button>
         </div>`;
@@ -1361,21 +1599,32 @@ function _collectConditionFor(key, hostEl) {
 }
 
 function _collectConditionVisualFor(scope, hostEl) {
-    const conds = (scope.conditions || []).filter((c) => c.raw !== undefined || (c.variable && c.op && c.value !== undefined && c.value !== ""));
+    const conds = (scope.conditions || []).filter((c) =>
+        c.raw !== undefined || (c.variable && c.op && (c.op === "exists" || c.op === "notExists" || (c.value !== undefined && c.value !== "")))
+    );
     if (!conds.length) return "";
     const parts = conds.map((c) => {
         if (c.raw !== undefined) return c.raw;
-        const op = c.op;
-        const vals = c.value.split(",").map((s) => s.trim()).filter(Boolean);
-        let valStr;
-        if (op === "in" || op === "notIn") {
-            valStr = "[" + vals.map((v) => `'${v}'`).join(", ") + "]";
-        } else if (["gt", "gte", "lt", "lte"].includes(op)) {
-            valStr = vals[0] || "0";
-        } else {
-            valStr = `'${vals[0] || ""}'`;
+        const x = c.variable === "http.request.uri.args"
+            ? `\${http.request.uri.args['${c.argName || ""}']}`
+            : `\${${c.variable}}`;
+        const vals = (c.value || "").split(",").map((s) => s.trim()).filter(Boolean);
+        const list = "[" + vals.map((v) => `'${v}'`).join(", ") + "]";
+        switch (c.op) {
+            case "in": return `${x} in ${list}`;
+            case "notIn": return `not ${x} in ${list}`;
+            case "contain": return `${x} contain ${list}`;
+            case "notContain": return `not ${x} contain ${list}`;
+            case "like": return `${x} like ${list}`;
+            case "notLike": return `not ${x} like ${list}`;
+            case "matches": return `${x} matches "${vals[0] || ""}"`;
+            case "notMatches": return `not ${x} matches "${vals[0] || ""}"`;
+            case "exists": return `${x} exists`;
+            case "notExists": return `not ${x} exists`;
+            case "gt": return `${x} > ${vals[0] || "0"}`;
+            case "lt": return `${x} < ${vals[0] || "0"}`;
+            default: return `${x} in ${list}`;
         }
-        return `\${${c.variable}} ${op} ${valStr}`;
     });
     return parts.join(" and ");
 }
@@ -1416,10 +1665,38 @@ function _bindCondEditorWithin(hostEl, scopeKey) {
     });
     hostEl.querySelectorAll(".cond-row").forEach((row) => {
         const i = +row.dataset.i;
-        row.querySelector(".cond-var").addEventListener("change", (e) => { scope.conditions[i].variable = e.target.value; delete scope.conditions[i].raw; _updateJsonPreview(); });
-        row.querySelector(".cond-op").addEventListener("change", (e) => { scope.conditions[i].op = e.target.value; delete scope.conditions[i].raw; _updateJsonPreview(); });
-        row.querySelector(".cond-val").addEventListener("input", (e) => { scope.conditions[i].value = e.target.value; delete scope.conditions[i].raw; _updateJsonPreview(); });
-        row.querySelector(".cond-raw").addEventListener("input", (e) => { scope.conditions[i].raw = e.target.value; _updateJsonPreview(); });
+        row.querySelector(".cond-var").addEventListener("change", (e) => { scope.conditions[i].variable = e.target.value; delete scope.conditions[i].raw; _refreshRuleForm(); });
+        row.querySelector(".cond-op").addEventListener("change", (e) => { scope.conditions[i].op = e.target.value; delete scope.conditions[i].raw; _refreshRuleForm(); });
+        row.querySelector(".cond-val")?.addEventListener("input", (e) => { scope.conditions[i].value = e.target.value; delete scope.conditions[i].raw; _updateJsonPreview(); });
+        row.querySelector(".cond-arg-name")?.addEventListener("input", (e) => { scope.conditions[i].argName = e.target.value; delete scope.conditions[i].raw; _updateJsonPreview(); });
+        row.querySelector(".cond-raw")?.addEventListener("input", (e) => { scope.conditions[i].raw = e.target.value; _updateJsonPreview(); });
+        // 请求 Host：chips 多选——从下拉选择域名追加，点 × 移除
+        const hostAdd = row.querySelector(".host-add");
+        if (hostAdd) {
+            hostAdd.addEventListener("change", (e) => {
+                const dom = e.target.value;
+                if (!dom) return;
+                const c = scope.conditions[i];
+                const cur = (c.value || "").trim();
+                const arr = cur ? cur.split(",").map((s) => s.trim()).filter(Boolean) : [];
+                if (!arr.includes(dom)) arr.push(dom);
+                c.value = arr.join(",");
+                delete c.raw;
+                _refreshRuleForm();
+            });
+        }
+        row.querySelectorAll(".chip-x").forEach((btn) => {
+            btn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                const idx = +btn.dataset.idx;
+                const c = scope.conditions[i];
+                const arr = (c.value || "").split(",").map((s) => s.trim()).filter(Boolean);
+                arr.splice(idx, 1);
+                c.value = arr.join(",");
+                delete c.raw;
+                _refreshRuleForm();
+            });
+        });
     });
 }
 
@@ -1427,7 +1704,7 @@ function _bindActEditorWithin(hostEl, scopeKey) {
     const scope = _getScope(scopeKey.kind, scopeKey.subIdx, scopeKey.tabIdx);
     if (!scope) return;
     hostEl.querySelector(".act-add")?.addEventListener("click", () => {
-        scope.actions.push({ Name: "WebSocket", params: { Switch: "off" } });
+        scope.actions.push({ Name: "WebSocket", params: _defaultActionParams(ACTION_META.WebSocket) });
         _refreshRuleForm();
     });
     hostEl.querySelectorAll(".act-del").forEach((b) => b.addEventListener("click", (e) => {
@@ -1438,7 +1715,7 @@ function _bindActEditorWithin(hostEl, scopeKey) {
     hostEl.querySelectorAll(".act-name").forEach((sel) => sel.addEventListener("change", (e) => {
         const i = +e.target.dataset.i;
         const meta = ACTION_META[e.target.value];
-        scope.actions[i] = { Name: e.target.value, params: meta && meta.fields && meta.fields[0]?.type === "switch" ? { Switch: "off" } : {} };
+        scope.actions[i] = { Name: e.target.value, params: _defaultActionParams(meta) };
         _refreshRuleForm();
     }));
     _bindActionParamsWithin(hostEl, scope);
@@ -1448,47 +1725,85 @@ function _bindActionParamsWithin(hostEl, scope) {
     hostEl.querySelectorAll(".act-switch").forEach((sw) => {
         sw.addEventListener("click", (e) => {
             const el = e.currentTarget;
-            const i = +el.dataset.i, key = el.dataset.key;
+            const slot = _paramSlot(scope, el);
+            if (!slot) return;
             const on = el.classList.toggle("on");
-            scope.actions[i].params[key] = on ? "on" : "off";
+            slot.container[slot.subkey] = on ? "on" : "off";
             el.nextElementSibling.textContent = on ? "开" : "关";
             _refreshRuleForm();
         });
     });
     hostEl.querySelectorAll(".act-select").forEach((sel) => sel.addEventListener("change", (e) => {
-        const i = +e.target.dataset.i, key = e.target.dataset.key;
+        const slot = _paramSlot(scope, e.target);
+        if (!slot) return;
         const raw = e.target.value;
-        scope.actions[i].params[key] = isNaN(Number(raw)) ? raw : Number(raw);
+        slot.container[slot.subkey] = isNaN(Number(raw)) ? raw : Number(raw);
         _refreshRuleForm();
     }));
     hostEl.querySelectorAll(".act-multi").forEach((cb) => cb.addEventListener("change", () => {
-        const i = +cb.dataset.i, key = cb.dataset.key;
-        const vals = [...hostEl.querySelectorAll(`.act-multi[data-i="${i}"][data-key="${key}"]`)].filter((c) => c.checked).map((c) => c.value);
-        scope.actions[i].params[key] = vals;
+        const slot = _paramSlot(scope, cb);
+        if (!slot) return;
+        const parts = [`data-i="${cb.dataset.i}"`, `data-key="${cb.dataset.key}"`];
+        if (cb.dataset.subkey !== undefined) parts.push(`data-subkey="${cb.dataset.subkey}"`);
+        if (cb.dataset.row !== undefined) parts.push(`data-row="${cb.dataset.row}"`);
+        const vals = [...hostEl.querySelectorAll(`.act-multi[${parts.join("")}]`)].filter((c) => c.checked).map((c) => c.value);
+        slot.container[slot.subkey] = vals;
         _refreshRuleForm();
     }));
     hostEl.querySelectorAll(".act-number, .act-text").forEach((inp) => inp.addEventListener("input", (e) => {
-        const i = +e.target.dataset.i, key = e.target.dataset.key;
+        const slot = _paramSlot(scope, e.target);
+        if (!slot) return;
         const isTime = e.target.classList.contains("act-time-val");
         const v = e.target.value;
         if (isTime) {
             const unitSel = e.target.parentElement.querySelector(".act-time-unit");
             const unit = unitSel ? unitSel.value : "s";
-            scope.actions[i].params[key] = _timeToSec(v, unit);
-            scope.actions[i].params[`__unit_${key}`] = unit;
+            slot.container[slot.subkey] = _timeToSec(v, unit);
+            if (e.target.dataset.subkey === undefined) {
+                scope.actions[+e.target.dataset.i].params[`__unit_${e.target.dataset.key}`] = unit;
+            }
         } else {
-            scope.actions[i].params[key] = e.target.type === "number" && v !== "" ? Number(v) : v;
+            slot.container[slot.subkey] = e.target.type === "number" && v !== "" ? Number(v) : v;
         }
         _updateJsonPreview();
     }));
     hostEl.querySelectorAll(".act-time-unit").forEach((sel) => sel.addEventListener("change", (e) => {
-        const i = +e.target.dataset.i, key = e.target.dataset.key;
+        const slot = _paramSlot(scope, e.target);
+        if (!slot) return;
         const valInput = e.target.parentElement.querySelector(".act-time-val");
         const val = valInput ? valInput.value : 0;
         const unit = e.target.value;
-        scope.actions[i].params[key] = _timeToSec(val, unit);
-        scope.actions[i].params[`__unit_${key}`] = unit;
+        slot.container[slot.subkey] = _timeToSec(val, unit);
+        if (e.target.dataset.subkey === undefined) {
+            scope.actions[+e.target.dataset.i].params[`__unit_${e.target.dataset.key}`] = unit;
+        }
         _updateJsonPreview();
+    }));
+    hostEl.querySelectorAll(".act-textlist").forEach((inp) => inp.addEventListener("input", (e) => {
+        const slot = _paramSlot(scope, e.target);
+        if (!slot) return;
+        slot.container[slot.subkey] = e.target.value.split(",").map((s) => s.trim()).filter(Boolean);
+        _updateJsonPreview();
+    }));
+    // kvList：添加 / 删除条目
+    hostEl.querySelectorAll(".kv-add").forEach((btn) => btn.addEventListener("click", () => {
+        const i = +btn.dataset.i, key = btn.dataset.key;
+        const act = scope.actions[i]; if (!act) return;
+        act.params = act.params || {};
+        if (!Array.isArray(act.params[key])) act.params[key] = [];
+        const meta = ACTION_META[act.Name];
+        const fieldDef = (meta && meta.fields) ? meta.fields.find((f) => f.key === key) : null;
+        act.params[key].push(fieldDef ? _newKvRow(fieldDef) : {});
+        _refreshRuleForm();
+    }));
+    hostEl.querySelectorAll(".kv-del").forEach((btn) => btn.addEventListener("click", (e) => {
+        const rowEl = e.target.closest(".kv-row");
+        const wrap = rowEl.parentElement;
+        const i = +wrap.dataset.i, key = wrap.dataset.key;
+        const row = +rowEl.dataset.row;
+        const act = scope.actions[i]; if (!act) return;
+        if (Array.isArray(act.params[key])) act.params[key].splice(row, 1);
+        _refreshRuleForm();
     }));
     hostEl.querySelectorAll(".act-cachemode").forEach((sel) => sel.addEventListener("change", (e) => {
         const i = +e.target.dataset.i;
@@ -1510,6 +1825,47 @@ function _bindActionParamsWithin(hostEl, scope) {
         const unit = e.target.value;
         scope.actions[i].params.CustomTimeCacheTime = _timeToSec(val, unit);
         scope.actions[i].params.__unit_CustomTimeCacheTime = unit;
+        _updateJsonPreview();
+    }));
+    hostEl.querySelectorAll(".act-cacheignore").forEach((sw) => sw.addEventListener("click", (e) => {
+        const el = e.currentTarget;
+        const i = +el.dataset.i;
+        const on = el.classList.toggle("on");
+        scope.actions[i].params.CustomTimeIgnoreCacheControl = on ? "on" : "off";
+        el.nextElementSibling.textContent = on ? "开" : "关";
+        _updateJsonPreview();
+    }));
+    // 遵循源站：DefaultCache 开关（切换需重渲染以显隐策略字段）
+    hostEl.querySelectorAll(".act-followcache").forEach((sw) => sw.addEventListener("click", (e) => {
+        const el = e.currentTarget;
+        const i = +el.dataset.i;
+        const on = el.classList.toggle("on");
+        scope.actions[i].params.FollowOriginDefaultCache = on ? "on" : "off";
+        _refreshRuleForm();
+    }));
+    hostEl.querySelectorAll(".act-followstrategy").forEach((sw) => sw.addEventListener("click", (e) => {
+        const el = e.currentTarget;
+        const i = +el.dataset.i;
+        const on = el.classList.toggle("on");
+        scope.actions[i].params.FollowOriginDefaultCacheStrategy = on ? "on" : "off";
+        el.nextElementSibling.textContent = on ? "开" : "关";
+        _updateJsonPreview();
+    }));
+    hostEl.querySelectorAll(".act-followtime").forEach((inp) => inp.addEventListener("input", (e) => {
+        const i = +e.target.dataset.i;
+        const unitSel = e.target.parentElement.querySelector(".act-followtime-unit");
+        const unit = unitSel ? unitSel.value : "s";
+        scope.actions[i].params.FollowOriginDefaultCacheTime = _timeToSec(e.target.value, unit);
+        scope.actions[i].params.__unit_FollowOriginDefaultCacheTime = unit;
+        _updateJsonPreview();
+    }));
+    hostEl.querySelectorAll(".act-followtime-unit").forEach((sel) => sel.addEventListener("change", (e) => {
+        const i = +e.target.dataset.i;
+        const valInput = e.target.parentElement.querySelector(".act-followtime");
+        const val = valInput ? valInput.value : 0;
+        const unit = e.target.value;
+        scope.actions[i].params.FollowOriginDefaultCacheTime = _timeToSec(val, unit);
+        scope.actions[i].params.__unit_FollowOriginDefaultCacheTime = unit;
         _updateJsonPreview();
     }));
     _bindHeaderActionsWithin(hostEl, scope);
@@ -1865,59 +2221,189 @@ function _renderActionParams(action, idx, meta) {
             <textarea class="form-control act-json" data-i="${idx}" rows="8" style="font-family:monospace;font-size:12px">${esc(json)}</textarea>`;
     }
     const params = action.params || {};
-    return meta.fields.map((f) => {
-        if (f.type === "headerActions") return _renderHeaderActions(idx, f, params);
-        if (f.type === "statusCodeCache") return _renderStatusCodeCache(idx, f, params);
-        if (f.type === "cacheMode") return _renderCacheMode(idx, f, params);
+    // 所有 switch 字段抽到最前面横向排列（节省垂直空间），其余字段按原顺序纵向渲染
+    const switchFields = meta.fields.filter((f) => f.type === "switch");
+    const otherFields = meta.fields.filter((f) => f.type !== "switch");
+    const out = [];
+    if (switchFields.length) out.push(_renderSwitchGroup(switchFields, idx, params));
+    otherFields.forEach((f) => {
+        if (f.type === "headerActions") { out.push(_renderHeaderActions(idx, f, params)); return; }
+        if (f.type === "statusCodeCache") { out.push(_renderStatusCodeCache(idx, f, params)); return; }
+        if (f.type === "cacheMode") { out.push(_renderCacheMode(idx, f, params)); return; }
         const show = _checkWhen(f.when, params);
         const styleHide = show ? "" : ` style="display:none"`;
         const val = params[f.key] !== undefined ? params[f.key] : "";
-        return `<div class="form-group act-field" data-key="${f.key}"${styleHide}>${_renderField(f, val, idx, params)}</div>`;
+        out.push(`<div class="form-group act-field" data-key="${f.key}"${styleHide}>${_renderField(f, val, idx, params)}</div>`);
+    });
+    return out.join("");
+}
+
+// 渲染一行多个开关（横向排列，节省垂直空间）
+function _renderSwitchGroup(fields, idx, params) {
+    const items = fields.map((f) => {
+        const show = _checkWhen(f.when, params);
+        const styleHide = show ? "" : ` style="display:none"`;
+        const val = params[f.key] !== undefined ? params[f.key] : "";
+        const attrs = `data-i="${idx}" data-key="${f.key}"`;
+        return `<div class="switch-item" data-key="${f.key}"${styleHide}>${_renderLeafField(f, val, idx, attrs, params)}</div>`;
     }).join("");
+    return `<div class="switch-group">${items}</div>`;
 }
 
 function _checkWhen(when, params) {
     if (!when) return true;
     return Object.entries(when).every(([k, v]) => {
+        if (Array.isArray(v)) return v.includes(params[k]);
         if (typeof v === "string" && v.startsWith("!")) return params[k] !== v.slice(1);
         return params[k] === v;
     });
 }
 
 function _renderField(f, val, idx, params) {
+    if (f.type === "nested") return _renderNestedField(idx, f, params);
+    if (f.type === "kvList") return _renderKvListField(idx, f, params);
+    return _renderLeafField(f, val, idx, `data-i="${idx}" data-key="${f.key}"`, params);
+}
+
+// 渲染叶子字段（switch/select/multiselect/number/text/textList）
+// attrs 为 data-* 属性串，用于区分顶层 / 嵌套 / 列表行写入位置
+function _renderLeafField(f, val, idx, attrs, params) {
     const label = `<label>${f.label}</label>`;
-    const name = `data-i="${idx}" data-key="${f.key}"`;
+    // 数据源字段（如源站组、域名）：满足 sourceWhen 且已有数据时渲染为下拉，否则回退手动输入
+    if (f.source && (!f.sourceWhen || _checkWhen(f.sourceWhen, params))) {
+        const opts = _sourceOptions(f, val);
+        if (opts) {
+            const emptyOpt = f.allowEmpty ? `<option value="">${typeof f.allowEmpty === "string" ? f.allowEmpty : "请选择"}</option>` : "";
+            return `${label}<select class="form-control act-select" ${attrs}>${emptyOpt}${opts}</select>`;
+        }
+        return `${label}<input type="text" class="form-control act-text" ${attrs} value="${esc(val)}" placeholder="${f.placeholder || "暂无数据，可手动填写"}" />`;
+    }
     if (f.type === "switch") {
         const on = val === "on";
-        return `${label}<div class="switch-row"><div class="switch ${on ? "on" : ""} act-switch" ${name}></div><span class="switch-label">${on ? "开" : "关"}</span></div>`;
+        return `${label}<div class="switch-row"><div class="switch ${on ? "on" : ""} act-switch" ${attrs}></div><span class="switch-label">${on ? "开" : "关"}</span></div>`;
     }
     if (f.type === "select") {
         const opts = (f.options || []).map((o) => `<option value="${o.v}" ${val === o.v || String(val) === String(o.v) ? "selected" : ""}>${o.t}</option>`).join("");
-        return `${label}<select class="form-control act-select" ${name}>${opts}</select>`;
+        return `${label}<select class="form-control act-select" ${attrs}>${opts}</select>`;
     }
     if (f.type === "multiselect") {
         const vals = Array.isArray(val) ? val : (val ? [val] : []);
         const boxes = (f.options || []).map((o) => {
             const checked = vals.includes(o.v) ? "checked" : "";
-            return `<label class="cb"><input type="checkbox" value="${o.v}" class="act-multi" data-i="${idx}" data-key="${f.key}" ${checked}/> ${o.t}</label>`;
+            return `<label class="cb"><input type="checkbox" value="${o.v}" class="act-multi" ${attrs} ${checked}/> ${o.t}</label>`;
         }).join("");
         return `${label}<div class="cb-group">${boxes}</div>`;
+    }
+    if (f.type === "textList") {
+        const arr = Array.isArray(val) ? val : (val ? [val] : []);
+        return `${label}<input type="text" class="form-control act-textlist" ${attrs} value="${esc(arr.join(", "))}" placeholder="多个值用英文逗号分隔" />`;
     }
     if (f.type === "number") {
         if (f.unit === "time") {
             const unitKey = `__unit_${f.key}`;
-            const preferredUnit = params[unitKey] || _findBestUnit(val);
+            const preferredUnit = (params && params[unitKey]) || _findBestUnit(val);
             const disp = _secToDisp(val, preferredUnit);
             const max = f.max != null ? Math.max(1, Math.floor(f.max / (TIME_UNITS.find((u) => u.v === disp.unit) || { m: 1 }).m)) : undefined;
             const min = f.min != null ? Math.ceil(f.min / (TIME_UNITS.find((u) => u.v === disp.unit) || { m: 1 }).m) : 0;
             return `${label}<div class="time-input">
-                <input type="number" class="form-control act-number act-time-val" ${name} value="${disp.val}" ${min != null ? `min="${min}"` : ""} ${max != null ? `max="${max}"` : ""} />
-                <select class="form-control act-time-unit" ${name}>${_timeUnitOptions(disp.unit)}</select>
+                <input type="number" class="form-control act-number act-time-val" ${attrs} value="${disp.val}" ${min != null ? `min="${min}"` : ""} ${max != null ? `max="${max}"` : ""} />
+                <select class="form-control act-time-unit" ${attrs}>${_timeUnitOptions(disp.unit)}</select>
             </div>`;
         }
-        return `${label}<input type="number" class="form-control act-number" ${name} value="${esc(val)}" ${f.min != null ? `min="${f.min}"` : ""} ${f.max != null ? `max="${f.max}"` : ""} />`;
+        return `${label}<input type="number" class="form-control act-number" ${attrs} value="${esc(val)}" ${f.min != null ? `min="${f.min}"` : ""} ${f.max != null ? `max="${f.max}"` : ""} />`;
     }
-    return `${label}<input type="text" class="form-control act-text" ${name} value="${esc(val)}" />`;
+    return `${label}<input type="text" class="form-control act-text" ${attrs} value="${esc(val)}" />`;
+}
+
+// 嵌套对象字段：params[key] 为单个对象，按 f.fields 子结构渲染
+function _renderNestedField(idx, f, params) {
+    const obj = (params && params[f.key] && typeof params[f.key] === "object" && !Array.isArray(params[f.key])) ? params[f.key] : {};
+    const body = (f.fields || []).map((sf) => {
+        const show = _checkWhen(sf.when, obj);
+        const styleHide = show ? "" : ` style="display:none"`;
+        const subVal = obj[sf.key] !== undefined ? obj[sf.key] : "";
+        const attrs = `data-i="${idx}" data-key="${f.key}" data-subkey="${sf.key}"`;
+        return `<div class="form-group nested-field" data-subkey="${sf.key}"${styleHide}>${_renderLeafField(sf, subVal, idx, attrs, obj)}</div>`;
+    }).join("");
+    return `<label>${f.label}</label><div class="nested-box">${body || `<p class="hint" style="margin:0">（无子配置）</p>`}</div>`;
+}
+
+// 对象列表字段：params[key] 为对象数组，每行按 f.fields 子结构渲染
+function _renderKvListField(idx, f, params) {
+    const list = (params && Array.isArray(params[f.key])) ? params[f.key] : [];
+    const rows = list.map((rowObj, row) => {
+        const cells = (f.fields || []).map((sf) => {
+            const show = _checkWhen(sf.when, rowObj);
+            const styleHide = show ? "" : ` style="display:none"`;
+            const subVal = rowObj[sf.key] !== undefined ? rowObj[sf.key] : "";
+            const attrs = `data-i="${idx}" data-key="${f.key}" data-row="${row}" data-subkey="${sf.key}"`;
+            return `<div class="kv-cell" data-subkey="${sf.key}"${styleHide}>${_renderLeafField(sf, subVal, idx, attrs, rowObj)}</div>`;
+        }).join("");
+        return `<div class="kv-row" data-row="${row}">${cells}<button class="btn sm danger kv-del" type="button">删除</button></div>`;
+    }).join("");
+    return `<label>${f.label}</label><div class="kv-rows" data-i="${idx}" data-key="${f.key}">${rows || `<p class="hint" style="margin:0">暂无条目，点击下方按钮添加。</p>`}</div>
+        <button class="btn sm ghost kv-add" type="button" data-i="${idx}" data-key="${f.key}">+ 添加条目</button>`;
+}
+
+// 根据元素 data-i/data-key/data-subkey/data-row 定位到 params 中的写入槽位
+function _paramSlot(scope, el) {
+    const i = +el.dataset.i, key = el.dataset.key;
+    const act = scope.actions[i];
+    if (!act) return null;
+    if (!act.params || typeof act.params !== "object") act.params = {};
+    const subkey = el.dataset.subkey;
+    const row = el.dataset.row;
+    if (row !== undefined) {
+        if (!Array.isArray(act.params[key])) act.params[key] = [];
+        if (!act.params[key][row] || typeof act.params[key][row] !== "object") act.params[key][row] = {};
+        return { container: act.params[key][row], subkey };
+    }
+    if (subkey !== undefined) {
+        const cur = act.params[key];
+        if (typeof cur !== "object" || cur === null || Array.isArray(cur)) act.params[key] = {};
+        return { container: act.params[key], subkey };
+    }
+    return { container: act.params, subkey: key };
+}
+
+// 为 kvList 新建一行，按子字段类型预填默认值
+function _newKvRow(f) {
+    const row = {};
+    (f.fields || []).forEach((sf) => {
+        if (sf.type === "select" && sf.options && sf.options.length) row[sf.key] = sf.options[0].v;
+        else if (sf.type === "switch") row[sf.key] = "off";
+        else if (sf.type === "multiselect" || sf.type === "textList") row[sf.key] = [];
+    });
+    return row;
+}
+
+// 动作默认参数：switch=off、select=首个选项、multiselect/textList=空数组，
+// 保证下拉显示值与实际存储值一致（避免必填 select 字段被遗漏）
+function _defaultActionParams(meta) {
+    const params = {};
+    if (meta && meta.fields) {
+        meta.fields.forEach((f) => {
+            if (f.type === "switch") params[f.key] = "off";
+            else if (f.type === "select" && f.options && f.options.length) params[f.key] = f.options[0].v;
+            else if (f.type === "multiselect" || f.type === "textList") params[f.key] = [];
+        });
+    }
+    return params;
+}
+
+// 递归清理空值（空字符串 / 空数组 / 空对象），用于提交前精简嵌套结构
+function _cleanParams(v) {
+    if (Array.isArray(v)) return v.length ? v : undefined;
+    if (v && typeof v === "object") {
+        const out = {};
+        for (const [k, val] of Object.entries(v)) {
+            if (val === undefined || val === null || val === "") continue;
+            if (Array.isArray(val) && !val.length) continue;
+            out[k] = val;
+        }
+        return out;
+    }
+    return v;
 }
 
 function _renderCacheMode(idx, f, params) {
@@ -1925,18 +2411,46 @@ function _renderCacheMode(idx, f, params) {
     const timeSec = params.CustomTimeCacheTime || 0;
     const opts = [{ v: "", t: "不设置" }, { v: "FollowOrigin", t: "遵循源站" }, { v: "NoCache", t: "不缓存" }, { v: "CustomTime", t: "自定义时间" }]
         .map((o) => `<option value="${o.v}" ${mode === o.v ? "selected" : ""}>${o.t}</option>`).join("");
-    let timeField = "";
+    let extraField = "";
     if (mode === "CustomTime") {
         const preferredUnit = params.__unit_CustomTimeCacheTime || _findBestUnit(timeSec);
         const disp = _secToDisp(timeSec, preferredUnit);
-        timeField = `<div class="form-group"><label>缓存时间（最长 365 天）</label>
+        const ignoreOn = params.CustomTimeIgnoreCacheControl === "on";
+        extraField = `<div class="form-group"><label>缓存时间（最长 365 天）</label>
             <div class="time-input">
                 <input type="number" class="form-control act-cachetime" data-i="${idx}" min="0" value="${disp.val}" />
                 <select class="form-control act-cachetime-unit" data-i="${idx}">${_timeUnitOptions(disp.unit)}</select>
             </div>
+        </div>
+        <div class="form-group"><label>忽略源站 CacheControl</label>
+            <div class="switch-row"><div class="switch ${ignoreOn ? "on" : ""} act-cacheignore" data-i="${idx}"></div><span class="switch-label">${ignoreOn ? "开" : "关"}</span></div>
+            <div class="hint">开启后忽略源站返回的 Cache-Control / Expires 头，强制按上方缓存时间缓存</div>
         </div>`;
+    } else if (mode === "FollowOrigin") {
+        const defaultCacheOn = params.FollowOriginDefaultCache === "on";
+        const strategyOn = params.FollowOriginDefaultCacheStrategy === "on";
+        const dTime = params.FollowOriginDefaultCacheTime || 0;
+        let strategyField = "";
+        if (defaultCacheOn) {
+            const preferredUnit = params.__unit_FollowOriginDefaultCacheTime || _findBestUnit(dTime);
+            const disp = _secToDisp(dTime, preferredUnit);
+            strategyField = `<div class="form-group"><label>使用默认缓存策略</label>
+                <div class="switch-row"><div class="switch ${strategyOn ? "on" : ""} act-followstrategy" data-i="${idx}"></div><span class="switch-label">${strategyOn ? "开" : "关"}</span></div>
+            </div>
+            <div class="form-group"><label>默认缓存时间</label>
+                <div class="time-input">
+                    <input type="number" class="form-control act-followtime" data-i="${idx}" min="0" value="${disp.val}" />
+                    <select class="form-control act-followtime-unit" data-i="${idx}">${_timeUnitOptions(disp.unit)}</select>
+                </div>
+                <div class="hint">源站未返回 Cache-Control 头时，按此时间缓存（使用默认策略时填 0）</div>
+            </div>`;
+        }
+        extraField = `<div class="form-group"><label>源站未返回 Cache-Control 时缓存</label>
+            <div class="switch-row"><div class="switch ${defaultCacheOn ? "on" : ""} act-followcache" data-i="${idx}"></div><span class="switch-label">${defaultCacheOn ? "开" : "关"}</span></div>
+            <div class="hint">关闭：源站未返回 Cache-Control 头时不缓存；开启：按下方策略缓存</div>
+        </div>${strategyField}`;
     }
-    return `<div class="form-group"><label>${f.label}</label><select class="form-control act-cachemode" data-i="${idx}">${opts}</select></div>${timeField}`;
+    return `<div class="form-group"><label>${f.label}</label><select class="form-control act-cachemode" data-i="${idx}">${opts}</select></div>${extraField}`;
 }
 
 function _renderHeaderActions(idx, f, params) {
@@ -1991,10 +2505,21 @@ function _collectAction(action) {
         return { Name: action.Name, [meta.paramsKey]: params };
     }
     const result = {};
-    if (params.__cacheMode === "FollowOrigin") result.FollowOrigin = { Switch: "on" };
+    if (params.__cacheMode === "FollowOrigin") {
+        const fc = { Switch: "on", DefaultCache: params.FollowOriginDefaultCache || "off" };
+        if (params.FollowOriginDefaultCache === "on") {
+            fc.DefaultCacheStrategy = params.FollowOriginDefaultCacheStrategy || "off";
+            fc.DefaultCacheTime = Number(params.FollowOriginDefaultCacheTime) || 0;
+        }
+        result.FollowOrigin = fc;
+    }
     else if (params.__cacheMode === "NoCache") result.NoCache = { Switch: "on" };
     else if (params.__cacheMode === "CustomTime") {
-        result.CustomTime = { Switch: "on", CacheTime: Number(params.CustomTimeCacheTime) || 0 };
+        result.CustomTime = {
+            Switch: "on",
+            IgnoreCacheControl: params.CustomTimeIgnoreCacheControl || "off",
+            CacheTime: Number(params.CustomTimeCacheTime) || 0,
+        };
     }
     if (params.__headerActions) {
         result.HeaderActions = params.__headerActions.filter((h) => h.Name).map((h) => {
@@ -2010,7 +2535,22 @@ function _collectAction(action) {
         }));
     }
     meta.fields.forEach((f) => {
-        if (f.type === "switch" || f.type === "select" || f.type === "multiselect" || f.type === "number" || f.type === "text") {
+        if (f.when && !_checkWhen(f.when, params)) return;  // 隐藏字段不收集
+        if (f.type === "nested") {
+            const cleaned = _cleanParams(params[f.key]);
+            if (cleaned && typeof cleaned === "object" && !Array.isArray(cleaned) && Object.keys(cleaned).length) {
+                result[f.key] = cleaned;
+            }
+        } else if (f.type === "kvList") {
+            const arr = Array.isArray(params[f.key]) ? params[f.key] : [];
+            const cleaned = arr.map((r) => _cleanParams(r)).filter((r) => r && typeof r === "object" && Object.keys(r).length);
+            if (cleaned.length) result[f.key] = cleaned;
+        } else if (f.type === "textList") {
+            const arr = Array.isArray(params[f.key]) ? params[f.key] : [];
+            const cleaned = arr.map((s) => String(s).trim()).filter(Boolean);
+            if (cleaned.length) result[f.key] = cleaned;
+        } else if (f.type === "switch" || f.type === "select" || f.type === "multiselect" || f.type === "number" || f.type === "text") {
+            if (Array.isArray(params[f.key]) && !params[f.key].length) return;
             if (params[f.key] !== undefined && params[f.key] !== "") {
                 result[f.key] = params[f.key];
             }
@@ -2067,6 +2607,7 @@ async function openEditRuleModal(ruleId) {
     });
     let rule;
     try {
+        await _ensureRuleDataSources();
         rule = await http(API.rule(state.zoneId, ruleId));
     } catch (e) {
         closeModal();
@@ -2096,6 +2637,41 @@ function _validateRuleStructure(rule) {
             if (!Array.isArray(tb.Actions) || !tb.Actions.length) {
                 const label = ti === 0 ? "IF" : tb.Condition === "*" ? "ELSE" : `ELSE IF #${ti}`;
                 return `IF2 #${si + 1} 的 ${label} 分支至少需要一个执行动作`;
+            }
+        }
+    }
+    // 动作必填参数校验
+    const reqErr = _validateActionRequired(rule);
+    if (reqErr) return reqErr;
+    return null;
+}
+
+// 校验动作中标记 required 的字段是否已填写（隐藏字段跳过）
+function _validateActionRequired(rule) {
+    const check = (actions) => {
+        for (const a of actions || []) {
+            const meta = ACTION_META[a.Name];
+            if (!meta || !meta.fields) continue;
+            const params = a[meta.paramsKey] || {};
+            for (const f of meta.fields) {
+                if (!f.required) continue;
+                if (f.when && !_checkWhen(f.when, params)) continue;
+                const v = params[f.key];
+                if (v === undefined || v === null || v === "" || (Array.isArray(v) && !v.length)) {
+                    return `${meta.label}：请填写「${f.label}」`;
+                }
+            }
+        }
+        return null;
+    };
+    const if1 = (rule.Branches || [])[0];
+    if (if1) {
+        const e = check(if1.Actions);
+        if (e) return e;
+        for (const sub of if1.SubRules || []) {
+            for (const tb of sub.Branches || []) {
+                const e2 = check(tb.Actions);
+                if (e2) return e2;
             }
         }
     }
@@ -2225,6 +2801,7 @@ async function viewRule(ruleId) {
 async function openAddRuleModal() {
     let tpl;
     try {
+        await _ensureRuleDataSources();
         tpl = await http(API.ruleTemplate());
     } catch (e) {
         toast(e.message, "error");
@@ -2234,6 +2811,10 @@ async function openAddRuleModal() {
     _ruleEditor = _parseRuleToEditor(rule);
     _ruleEditor._ruleId = null;
     if (!_ruleEditor.ruleName || _ruleEditor.ruleName.includes("请修改")) _ruleEditor.ruleName = "";
+    // 默认添加一条「匹配 Host」条件（值为空，待从域名列表选择）
+    if (!_ruleEditor.if1.conditions || !_ruleEditor.if1.conditions.length) {
+        _ruleEditor.if1.conditions = [{ variable: "http.request.host", op: "in", value: "" }];
+    }
     _renderRuleForm(false);
 }
 

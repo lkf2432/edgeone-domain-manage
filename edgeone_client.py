@@ -643,6 +643,51 @@ class EdgeOneClient:
             return json.load(f)
 
     # ------------------------------------------------------------------
+    # 规则引擎相关资源（供动作参数下拉自动加载）
+    # ------------------------------------------------------------------
+    def list_content_identifiers(self) -> Dict[str, Any]:
+        """列出内容标识符（账户级，供 SetContentIdentifier 动作下拉）。
+
+        使用 DescribeContentIdentifiers，无 ZoneId（返回当前账号有权限的全部内容标识符）。
+        仅保留 active 状态的标识符。
+        """
+        req = models.DescribeContentIdentifiersRequest()
+        req.Offset = 0
+        req.Limit = 100
+        resp = self._invoke("DescribeContentIdentifiers", req)
+        items = [self._to_dict(c) for c in (resp.ContentIdentifiers or [])]
+        items = [c for c in items if (c.get("Status") or "").lower() == "active"]
+        return {"items": items, "total": len(items)}
+
+    def list_custom_error_pages(self, zone_id: str) -> Dict[str, Any]:
+        """列出自定义错误页面（站点级，供 HTTPResponse 动作的 ResponsePage 下拉）。"""
+        if not zone_id:
+            raise EdgeOneError("缺少 zone_id")
+        req = models.DescribeCustomErrorPagesRequest()
+        req.ZoneId = zone_id
+        req.Offset = 0
+        req.Limit = 1000
+        resp = self._invoke("DescribeCustomErrorPages", req)
+        items = [self._to_dict(c) for c in (resp.ErrorPages or [])]
+        return {"items": items, "total": resp.TotalCount or len(items)}
+
+    def list_shield_spaces(self, zone_id: str) -> Dict[str, Any]:
+        """列出源站卸载空间（站点级，供 Shield 动作的 ShieldSpaceId 下拉）。
+
+        源站卸载(Shield) 为内测/白名单功能，当前 SDK(v20220901) 未收录该接口，
+        这里用 call_json 直调 DescribeShieldSpaces；账号未开通时接口会报错，
+        上层捕获后返回空列表，前端回退为手动输入。
+        """
+        if not zone_id:
+            raise EdgeOneError("缺少 zone_id")
+        resp = self._invoke_json(
+            "DescribeShieldSpaces",
+            {"ZoneId": zone_id, "Offset": 0, "Limit": 200},
+        )
+        items = resp.get("ShieldSpaces") or []
+        return {"items": items, "total": resp.get("TotalCount") or len(items)}
+
+    # ------------------------------------------------------------------
     # 字段构造
     # ------------------------------------------------------------------
     @staticmethod
